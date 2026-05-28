@@ -1,0 +1,17 @@
+# 触发器：推送到主分支
+main:
+  push:
+    # 从私有仓库导入环境变量：
+    # 参考：https://docs.cnb.cool/en/build/env.html#importing-environment-variables
+    - imports: https://cnb.cool/qianhaitech/deep_sea/others/EdgeOneKey/-/blob/main/envs.yml
+      stages:
+        # 构建当前项目
+        - name: Build Current Project
+          image: node:20
+          script: node -v && npm install && npm run build
+        # 将构建输出部署到 EdgeOne Pages
+        # ./dist 目录由前一步构建步骤生成
+        # 参考：https://www.npmjs.com/package/edgeone
+        - name: Deploy to EdgeOne Pages
+          image: node:20
+          script: npx edgeone pages deploy apps/site -n edgeone-supabase-cms -t $EDGEONE_API_TOKEN
