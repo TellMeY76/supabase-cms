@@ -130,7 +130,7 @@ export function RichTextEditor({
           contentEditable={
             <ContentEditable className="payload-editor-content" />
           }
-          placeholder=""
+          placeholder={null}
           ErrorBoundary={LexicalErrorBoundary}
         />
         <HistoryPlugin />
