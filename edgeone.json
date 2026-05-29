@@ -1,6 +1,6 @@
 {
   "installCommand": "corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @global-trade/site build && node apps/site/scripts/prepare-edgeone-output.mjs",
-  "outputDirectory": "apps/site/.next/standalone",
+  "buildCommand": "rm -rf apps/site/.next && pnpm --filter @global-trade/site build && rm -rf apps/site/.next/cache",
+  "outputDirectory": "apps/site/.next",
   "nodeVersion": "20.18.0"
 }
