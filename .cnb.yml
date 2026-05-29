@@ -16,4 +16,4 @@ main:
         - name: Deploy to EdgeOne Pages
           image: tencentcom/deploy-eopages:latest
           script:
-            - PAGES_SOURCE=skills edgeone pages deploy apps/site -n edgeone-supabase-cms -t "$EDGEONE_API_TOKEN"
+            - PAGES_SOURCE=skills edgeone pages deploy apps/site/.next -n edgeone-supabase-cms -t "$EDGEONE_API_TOKEN"
