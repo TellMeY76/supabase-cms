@@ -1,0 +1,6 @@
+{
+  "installCommand": "corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @global-trade/site build",
+  "outputDirectory": "apps/site/.next",
+  "nodeVersion": "20"
+}

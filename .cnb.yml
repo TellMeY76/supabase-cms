@@ -14,6 +14,8 @@ main:
             - pnpm --filter @global-trade/site build
 
         - name: Deploy to EdgeOne Pages
-          image: tencentcom/deploy-eopages:latest
+          image: node:20
           script:
-            - PAGES_SOURCE=skills edgeone pages deploy apps/site/.next -n edgeone-supabase-cms -t "$EDGEONE_API_TOKEN"
+            - corepack enable
+            - corepack prepare pnpm@9.15.4 --activate
+            - PAGES_SOURCE=skills npx edgeone@latest pages deploy -n edgeone-supabase-cms -t "$EDGEONE_API_TOKEN"
