@@ -3,6 +3,7 @@ import { saveProductAction } from "@/app/(admin)/admin/actions";
 import { emptyRichTextDocument } from "@/lib/rich-text";
 import { RichTextEditor } from "./RichTextEditor";
 import { FileDropzone } from "./FileDropzone";
+import { CategoryTreeSelect } from "./CategoryTreeSelect";
 
 export function ProductForm({
   product,
@@ -11,8 +12,6 @@ export function ProductForm({
   product?: Partial<Product> & { contentJson?: unknown };
   categories?: ProductCategory[];
 }) {
-  const selectedCategories = new Set(product?.categoryIds ?? []);
-
   return (
     <form action={saveProductAction} className="payload-form">
       {product?.id && <input name="id" type="hidden" value={product.id} />}
@@ -80,19 +79,8 @@ export function ProductForm({
           />
         </div>
         <div className="payload-field">
-          <label htmlFor="categoryIds">Categories</label>
-          <select
-            id="categoryIds"
-            name="categoryIds"
-            multiple
-            defaultValue={[...selectedCategories]}
-          >
-            {categories.map(category => (
-              <option key={category.id} value={category.id}>
-                {category.title}
-              </option>
-            ))}
-          </select>
+          <label>Categories</label>
+          <CategoryTreeSelect categories={categories} selectedIds={product?.categoryIds ?? []} />
         </div>
         <div className="payload-field">
           <label htmlFor="tagIds">Tag IDs</label>
@@ -224,9 +212,11 @@ export function ProductForm({
           </select>
         </div>
       </section>
-      <button className="payload-button" type="submit">
-        Save product
-      </button>
+      <div className="payload-form-actions">
+        <button className="payload-button" type="submit">
+          Save product
+        </button>
+      </div>
     </form>
   );
 }

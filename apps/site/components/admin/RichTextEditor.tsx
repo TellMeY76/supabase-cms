@@ -27,9 +27,12 @@ import {
   INSERT_TABLE_COMMAND,
 } from "@lexical/table";
 import {
+  $createParagraphNode,
   $getRoot,
   $getSelection,
   $insertNodes,
+  $isElementNode,
+  $isTextNode,
   $isRangeSelection,
   COMMAND_PRIORITY_EDITOR,
   DecoratorNode,
@@ -313,7 +316,18 @@ function HtmlSeedPlugin({ html }: { html: string }) {
       const nodes = $generateNodesFromDOM(editor, dom);
       const root = $getRoot();
       root.clear();
-      root.append(...nodes);
+      for (const node of nodes) {
+        if ($isElementNode(node) || node instanceof DecoratorNode) {
+          root.append(node);
+          continue;
+        }
+
+        if ($isTextNode(node)) {
+          const paragraph = $createParagraphNode();
+          paragraph.append(node);
+          root.append(paragraph);
+        }
+      }
     });
   }, [editor, html]);
   return null;

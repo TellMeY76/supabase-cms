@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 const statusSchema = z.enum(["draft", "published", "archived"]);
+const inquiryStatusSchema = z.enum(["new", "contacted", "closed", "spam"]);
 const roleSchema = z.enum(["owner", "admin", "editor", "sales", "viewer"]);
 const userManagerRoles: UserRole[] = ["owner", "admin"];
 type SupabaseServerClient =
@@ -49,7 +50,6 @@ const productSchema = z.object({
   tagIds: z.string().optional(),
   summary: z.string().optional(),
   primaryImageUrl: z.string().optional(),
-  galleryUrls: z.string().optional(),
   specifications: z.string().optional(),
   regularPrice: z.string().optional(),
   salePrice: z.string().optional(),
@@ -74,6 +74,7 @@ const productCategorySchema = z.object({
   slug: z.string().optional(),
   parentId: z.string().optional(),
   description: z.string().optional(),
+  imageUrl: z.string().optional(),
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
   seoCanonicalUrl: z.string().optional(),
@@ -96,6 +97,12 @@ const updateUserRoleSchema = z.object({
 
 const deleteUserSchema = z.object({
   id: z.string().min(1)
+});
+
+const updateInquiryStatusSchema = z.object({
+  id: z.string().min(1),
+  status: inquiryStatusSchema,
+  returnTo: z.string().optional()
 });
 
 const settingsSchema = z.object({
@@ -172,6 +179,7 @@ export async function saveProductAction(formData: FormData) {
   const richText = parsed.contentHtml ?? "";
   const categoryIds = formData.getAll("categoryIds").map(String).filter(Boolean);
   const tagIds = formData.getAll("tagIds").map(String).filter(Boolean);
+  const galleryUrls = formData.getAll("galleryUrls").map(String).filter(Boolean);
   const payload = {
     title: parsed.title,
     slug,
@@ -184,7 +192,7 @@ export async function saveProductAction(formData: FormData) {
     category_ids: categoryIds.length > 0 ? categoryIds : splitLines(parsed.categoryIds),
     tag_ids: tagIds.length > 0 ? tagIds : splitLines(parsed.tagIds),
     primary_image: parsed.primaryImageUrl ? remoteMediaValue(parsed.primaryImageUrl) : null,
-    gallery: splitLines(parsed.galleryUrls).map(remoteMediaValue),
+    gallery: galleryUrls.map(remoteMediaValue),
     specifications: parseSpecifications(parsed.specifications),
     regular_price: emptyToNull(parsed.regularPrice),
     sale_price: emptyToNull(parsed.salePrice),
@@ -223,6 +231,7 @@ export async function saveProductCategoryAction(formData: FormData) {
     slug,
     parent_id: emptyToNull(parsed.parentId),
     description: emptyToNull(parsed.description),
+    image: parsed.imageUrl ? remoteMediaValue(parsed.imageUrl) : null,
     seo: {
       title: emptyToUndefined(parsed.seoTitle),
       description: emptyToUndefined(parsed.seoDescription),
@@ -294,6 +303,20 @@ export async function deletePostAction(formData: FormData) {
   redirectPostsSuccess("Post deleted.");
 }
 
+export async function deleteProductAction(formData: FormData) {
+  await requireAdminRole(["owner", "admin", "editor"]);
+  const parsed = deleteUserSchema.safeParse(formEntries(formData));
+  if (!parsed.success) redirectProductsError("Please choose a valid product to delete.");
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createCookieSupabaseClient();
+    const { error } = await supabase.from("products").delete().eq("id", parsed.data.id);
+    if (error) redirectProductsError(error.message);
+  }
+
+  redirectProductsSuccess("Product deleted.");
+}
+
 export async function updatePostStatusAction(formData: FormData) {
   await requireAdminRole(["owner", "admin", "editor"]);
   const entries = formEntries(formData);
@@ -313,6 +336,38 @@ export async function updatePostStatusAction(formData: FormData) {
   }
 
   redirect("/admin/posts");
+}
+
+export async function updateProductStatusAction(formData: FormData) {
+  await requireAdminRole(["owner", "admin", "editor"]);
+  const entries = formEntries(formData);
+  const id = z.string().min(1).parse(entries.id);
+  const status = statusSchema.parse(entries.status);
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createCookieSupabaseClient();
+    const { error } = await supabase.from("products").update({ status }).eq("id", id);
+    if (error) redirectProductsError(error.message);
+  }
+
+  redirect("/admin/products");
+}
+
+export async function updateInquiryStatusAction(formData: FormData) {
+  await requireAdminRole(["owner", "admin", "sales"]);
+  const parsed = updateInquiryStatusSchema.safeParse(formEntries(formData));
+  if (!parsed.success) redirectInquiriesError("Please choose a valid inquiry and status.");
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createCookieSupabaseClient();
+    const { error } = await supabase
+      .from("inquiries")
+      .update({ status: parsed.data.status })
+      .eq("id", parsed.data.id);
+    if (error) redirectInquiriesError(error.message);
+  }
+
+  redirect(parsed.data.returnTo || `/admin/inquiries?success=${encodeURIComponent("Inquiry status updated.")}`);
 }
 
 export async function saveSettingsAction(formData: FormData) {
@@ -586,6 +641,18 @@ function redirectPostsError(message: string): never {
 
 function redirectPostsSuccess(message: string): never {
   redirect(`/admin/posts?success=${encodeURIComponent(message)}`);
+}
+
+function redirectProductsError(message: string): never {
+  redirect(`/admin/products?error=${encodeURIComponent(message)}`);
+}
+
+function redirectProductsSuccess(message: string): never {
+  redirect(`/admin/products?success=${encodeURIComponent(message)}`);
+}
+
+function redirectInquiriesError(message: string): never {
+  redirect(`/admin/inquiries?error=${encodeURIComponent(message)}`);
 }
 
 function redirectPostCategoriesError(message: string): never {

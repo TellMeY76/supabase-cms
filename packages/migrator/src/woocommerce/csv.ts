@@ -25,6 +25,69 @@ export function parseWooCommerceProductsCsv(csv: string, sourceSiteUrl: string):
   const categorySlugs = new Map<string, { title: string; parentId?: string | undefined }>();
   const tagSlugs = new Set<string>();
 
+  if (looksLikeProductCategoryExport(records)) {
+    for (const record of records) {
+      const name = value(record.Name) ?? value(record.name) ?? value(record.Title) ?? value(record.title);
+      if (!name) continue;
+      const slug = value(record.Slug) ?? value(record.slug) ?? slugify(name);
+      const parentSlug = value(record.Parent) ?? value(record.parent);
+      const thumbnail = firstUrl(value(record.Thumbnail) ?? value(record.thumbnail) ?? value(record.Image) ?? value(record.image));
+      const thumbnailUrl = thumbnail ? new URL(thumbnail, sourceSiteUrl).toString() : undefined;
+      const source = {
+        siteUrl: sourceSiteUrl,
+        sourceType: "woocommerce:product-category",
+        sourceId: value(record.ID) ?? value(record.id) ?? slug,
+        sourceSlug: slug,
+        sourceUrl: new URL(`/product-category/${slug}/`, sourceSiteUrl).toString()
+      };
+
+      if (thumbnailUrl) {
+        entities.push({
+          kind: "media",
+          source: {
+            siteUrl: sourceSiteUrl,
+            sourceType: "woocommerce:category-thumbnail",
+            sourceId: thumbnailUrl,
+            sourceUrl: thumbnailUrl
+          },
+          data: {
+            sourceUrl: thumbnailUrl,
+            title: name
+          }
+        });
+      }
+
+      entities.push({
+        kind: "productCategory",
+        source,
+        data: compactUndefined({
+          slug,
+          title: name,
+          displayTitle: name.replace(/^-\s*/, ""),
+          description: value(record.Description) ?? value(record.description) ?? "",
+          parentId: parentSlug ? slugify(parentSlug) : undefined,
+          image: thumbnailUrl
+            ? {
+                id: thumbnailUrl,
+                kind: "remote",
+                sourceUrl: thumbnailUrl,
+                storagePath: thumbnailUrl,
+                publicUrl: thumbnailUrl,
+                title: name
+              }
+            : undefined,
+          source
+        })
+      });
+    }
+
+    return {
+      entities,
+      warnings,
+      detectedSeoPlugins: [...detectedSeoPlugins]
+    };
+  }
+
   for (const record of records) {
     const sourceId = value(record.ID) ?? value(record.id) ?? value(record.SKU) ?? value(record.Name) ?? cryptoRandomFallback();
     const name = value(record.Name) ?? value(record.name) ?? "Untitled product";
@@ -165,7 +228,7 @@ export function parseWooCommerceProductsCsv(csv: string, sourceSiteUrl: string):
           id: image,
           kind: "remote",
           sourceUrl: image,
-          storagePath: "",
+          storagePath: image,
           publicUrl: image,
           title: name
         })),
@@ -241,6 +304,19 @@ function splitList(input: string | undefined): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function firstUrl(input: string | undefined): string | undefined {
+  if (!input) return undefined;
+  const match = input.match(/https?:\/\/[^\s,]+/i);
+  return match?.[0] ?? input.split(",").map((item) => item.trim()).find(Boolean);
+}
+
+function looksLikeProductCategoryExport(records: Record<string, string>[]): boolean {
+  const first = records[0];
+  if (!first) return false;
+  const keys = new Set(Object.keys(first).map((key) => key.toLowerCase()));
+  return keys.has("thumbnail") && keys.has("name") && !keys.has("published") && !keys.has("images");
 }
 
 function normalizeStatus(published: string | undefined) {

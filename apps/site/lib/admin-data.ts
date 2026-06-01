@@ -1,4 +1,4 @@
-import type { Post, PostCategory, Product, ProductCategory, UserRole } from "@global-trade/core";
+import type { Inquiry, Post, PostCategory, Product, ProductCategory, UserRole } from "@global-trade/core";
 import { mockCategories, mockPostCategories, mockPosts, mockProducts } from "./mock-data";
 import { createCookieSupabaseClient } from "./auth";
 import { createServiceSupabaseClient, isSupabaseConfigured, isSupabaseServiceRoleConfigured } from "./supabase";
@@ -7,6 +7,15 @@ type AdminPost = Post & { contentJson?: unknown };
 type AdminProduct = Product & { contentJson?: unknown };
 type AdminProductCategory = ProductCategory & { updatedAt?: string | undefined };
 type AdminPostCategory = PostCategory & { createdAt?: string; updatedAt?: string };
+
+export type AdminInquiry = Inquiry & {
+  product?: Pick<Product, "id" | "slug" | "title"> | null;
+};
+
+export interface AdminInquiryFilters {
+  formType?: string | undefined;
+  status?: string | undefined;
+}
 
 export interface AdminUser {
   id: string;
@@ -119,6 +128,32 @@ export async function listAdminMedia(): Promise<AdminMediaAsset[]> {
     height: row.height ?? null,
     createdAt: row.created_at
   }));
+}
+
+export async function listAdminInquiries(filters: AdminInquiryFilters = {}): Promise<AdminInquiry[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createCookieSupabaseClient();
+  let query = supabase
+    .from("inquiries")
+    .select("*, product:products(id,slug,title)")
+    .order("created_at", { ascending: false });
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.formType) query = query.eq("form_type", filters.formType);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data.map(mapInquiry);
+}
+
+export async function getAdminInquiry(id: string): Promise<AdminInquiry | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createCookieSupabaseClient();
+  const { data, error } = await supabase
+    .from("inquiries")
+    .select("*, product:products(id,slug,title)")
+    .eq("id", id)
+    .single();
+  if (error) return null;
+  return mapInquiry(data);
 }
 
 export async function getAdminProductCategory(id: string): Promise<AdminProductCategory | null> {
@@ -291,6 +326,7 @@ function mapProductCategory(row: Record<string, any>): AdminProductCategory {
     displayTitle: row.display_title ?? undefined,
     description: row.description ?? undefined,
     parentId: row.parent_id ?? undefined,
+    image: row.image ?? undefined,
     seo: row.seo ?? undefined,
     source: row.source ?? undefined,
     updatedAt: row.updated_at
@@ -306,6 +342,29 @@ function mapPostCategory(row: Record<string, any>): AdminPostCategory {
     source: row.source ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined
+  };
+}
+
+function mapInquiry(row: Record<string, any>): AdminInquiry {
+  return {
+    id: row.id,
+    status: row.status,
+    formType: row.form_type ?? "product_inquiry",
+    subject: row.subject ?? undefined,
+    name: row.name,
+    email: row.email,
+    phone: row.phone ?? undefined,
+    messenger: row.messenger ?? undefined,
+    company: row.company ?? undefined,
+    message: row.message,
+    productId: row.product_id ?? undefined,
+    sourceUrl: row.source_url ?? undefined,
+    payload: row.payload ?? {},
+    fieldLabels: row.field_labels ?? {},
+    metadata: row.metadata ?? {},
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? undefined,
+    product: row.product ?? null
   };
 }
 

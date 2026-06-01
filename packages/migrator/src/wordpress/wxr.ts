@@ -11,35 +11,37 @@ export interface ParsedWxr {
 }
 
 interface WxrItem {
-  title?: string;
-  link?: string;
-  pubDate?: string;
-  "content:encoded"?: string;
-  "excerpt:encoded"?: string;
+  title?: WxrText;
+  link?: WxrText;
+  pubDate?: WxrText;
+  "content:encoded"?: WxrText;
+  "excerpt:encoded"?: WxrText;
   "wp:post_id"?: number | string;
-  "wp:post_name"?: string;
-  "wp:post_type"?: string;
-  "wp:status"?: string;
-  "wp:post_date"?: string;
-  "wp:post_date_gmt"?: string;
-  "wp:post_modified"?: string;
-  "wp:post_modified_gmt"?: string;
-  "wp:creator"?: string;
-  "wp:attachment_url"?: string;
+  "wp:post_name"?: WxrText;
+  "wp:post_type"?: WxrText;
+  "wp:status"?: WxrText;
+  "wp:post_date"?: WxrText;
+  "wp:post_date_gmt"?: WxrText;
+  "wp:post_modified"?: WxrText;
+  "wp:post_modified_gmt"?: WxrText;
+  "wp:creator"?: WxrText;
+  "wp:attachment_url"?: WxrText;
   "wp:postmeta"?: WxrMeta | WxrMeta[];
   category?: WxrCategory | WxrCategory[];
 }
 
 interface WxrMeta {
-  "wp:meta_key"?: string;
-  "wp:meta_value"?: string;
+  "wp:meta_key"?: WxrText;
+  "wp:meta_value"?: WxrText;
 }
 
 interface WxrCategory {
   "@_domain"?: string;
   "@_nicename"?: string;
-  "#text"?: string;
+  "#text"?: WxrText;
 }
+
+type WxrText = string | number | { "#text"?: WxrText } | WxrText[];
 
 export function parseWordPressWxr(xml: string, sourceSiteUrl: string): ParsedWxr {
   const parser = new XMLParser({
@@ -57,27 +59,31 @@ export function parseWordPressWxr(xml: string, sourceSiteUrl: string): ParsedWxr
   const detectedSeoPlugins = new Set<string>();
 
   for (const item of items) {
-    const postType = item["wp:post_type"];
-    if (postType !== "post" && postType !== "page" && postType !== "attachment") continue;
+    const postType = textValue(item["wp:post_type"]);
+    if (!postType) continue;
+    if (!isImportablePostType(postType)) continue;
 
-    const sourceId = String(item["wp:post_id"] ?? item.link ?? item.title ?? cryptoRandomFallback());
+    const itemLink = textValue(item.link);
+    const itemTitle = textValue(item.title);
+    const postName = textValue(item["wp:post_name"]);
+    const sourceId = String(item["wp:post_id"] ?? itemLink ?? itemTitle ?? cryptoRandomFallback());
     const source = compactUndefined({
       siteUrl: sourceSiteUrl,
       sourceType: `wordpress:${postType}`,
       sourceId,
-      sourceSlug: item["wp:post_name"] || undefined,
-      sourceUrl: item.link
+      sourceSlug: postName || undefined,
+      sourceUrl: itemLink
     });
 
     if (postType === "attachment") {
-      const sourceUrl = item["wp:attachment_url"] ?? item.link;
+      const sourceUrl = textValue(item["wp:attachment_url"]) ?? itemLink;
       if (sourceUrl) {
         entities.push({
           kind: "media",
           source,
           data: compactUndefined({
             sourceUrl,
-            title: item.title
+            title: itemTitle
           })
         });
       }
@@ -88,33 +94,35 @@ export function parseWordPressWxr(xml: string, sourceSiteUrl: string): ParsedWxr
     const { pluginId, seo } = mapSeo(meta);
     if (pluginId) detectedSeoPlugins.add(pluginId);
 
-    const status: PublishStatus = item["wp:status"] === "publish" ? "published" : "draft";
-    const richText = item["content:encoded"] ?? "";
+    const status: PublishStatus = textValue(item["wp:status"]) === "publish" ? "published" : "draft";
+    const richText = textValue(item["content:encoded"]) ?? "";
     const taxonomies = normalizeCategories(item.category);
     const postCategoryIds: string[] = [];
     const postTagIds: string[] = [];
+    const categoryDomains = postCategoryDomains(postType);
 
-    for (const category of taxonomies.filter((row) => row.domain === "category")) {
+    for (const category of taxonomies.filter((row) => categoryDomains.includes(row.domain))) {
       const slug = category.slug || slugify(category.title);
       postCategoryIds.push(slug);
+      const sourceType = `wordpress:${category.domain}`;
       entities.push({
         kind: "postCategory",
         source: {
           siteUrl: sourceSiteUrl,
-          sourceType: "wordpress:category",
+          sourceType,
           sourceId: slug,
           sourceSlug: slug,
-          sourceUrl: new URL(`/category/${slug}/`, sourceSiteUrl).toString()
+          sourceUrl: categorySourceUrl(category.domain, slug, sourceSiteUrl)
         },
         data: {
           slug,
           title: category.title,
           source: {
             siteUrl: sourceSiteUrl,
-            sourceType: "wordpress:category",
+            sourceType,
             sourceId: slug,
             sourceSlug: slug,
-            sourceUrl: new URL(`/category/${slug}/`, sourceSiteUrl).toString()
+            sourceUrl: categorySourceUrl(category.domain, slug, sourceSiteUrl)
           }
         }
       });
@@ -163,24 +171,24 @@ export function parseWordPressWxr(xml: string, sourceSiteUrl: string): ParsedWxr
     }
 
     const base = {
-      slug: item["wp:post_name"] || slugify(item.title ?? sourceId),
-      title: item.title ?? "Untitled",
+      slug: postName || slugify(itemTitle ?? sourceId),
+      title: itemTitle ?? "Untitled",
       status,
       richText,
       seo,
       source
     };
 
-    if (postType === "post") {
+    if (postType !== "page") {
       entities.push({
         kind: "post",
         source,
         data: compactUndefined({
           ...base,
-          author: item["wp:creator"] || undefined,
-          excerpt: item["excerpt:encoded"] || undefined,
-          publishedAt: parseDate(item.pubDate ?? item["wp:post_date_gmt"] ?? item["wp:post_date"]),
-          modifiedAt: parseDate(item["wp:post_modified_gmt"] ?? item["wp:post_modified"]),
+          author: textValue(item["wp:creator"]) || undefined,
+          excerpt: textValue(item["excerpt:encoded"]) || undefined,
+          publishedAt: parseDate(textValue(item.pubDate) ?? textValue(item["wp:post_date_gmt"]) ?? textValue(item["wp:post_date"])),
+          modifiedAt: parseDate(textValue(item["wp:post_modified_gmt"]) ?? textValue(item["wp:post_modified"])),
           categoryIds: postCategoryIds,
           tagIds: postTagIds
         })
@@ -209,13 +217,29 @@ export function parseWordPressWxr(xml: string, sourceSiteUrl: string): ParsedWxr
   };
 }
 
+function isImportablePostType(postType: string) {
+  return ["post", "page", "attachment", "news", "faqs"].includes(postType);
+}
+
+function postCategoryDomains(postType: string) {
+  if (postType === "news") return ["news_categories", "category"];
+  if (postType === "faqs") return ["faqs_categories", "category"];
+  return ["category"];
+}
+
+function categorySourceUrl(domain: string, slug: string, sourceSiteUrl: string) {
+  if (domain === "news_categories") return new URL(`/news_categories/${slug}/`, sourceSiteUrl).toString();
+  if (domain === "faqs_categories") return new URL(`/faqs_categories/${slug}/`, sourceSiteUrl).toString();
+  return new URL(`/category/${slug}/`, sourceSiteUrl).toString();
+}
+
 function normalizeCategories(input: WxrCategory | WxrCategory[] | undefined): Array<{ domain: string; slug: string; title: string }> {
   const rows = Array.isArray(input) ? input : input ? [input] : [];
   return rows
     .map((row) => ({
       domain: row["@_domain"] ?? "",
       slug: row["@_nicename"] ?? "",
-      title: row["#text"] ?? row["@_nicename"] ?? ""
+      title: textValue(row["#text"]) ?? row["@_nicename"] ?? ""
     }))
     .filter((row) => row.domain && row.title);
 }
@@ -230,10 +254,18 @@ function normalizeMeta(input: WxrMeta | WxrMeta[] | undefined): Record<string, s
   const rows = Array.isArray(input) ? input : input ? [input] : [];
   const output: Record<string, string> = {};
   for (const row of rows) {
-    if (!row["wp:meta_key"]) continue;
-    output[row["wp:meta_key"]] = row["wp:meta_value"] ?? "";
+    const key = textValue(row["wp:meta_key"]);
+    if (!key) continue;
+    output[key] = textValue(row["wp:meta_value"]) ?? "";
   }
   return output;
+}
+
+function textValue(input: WxrText | undefined): string | undefined {
+  if (input === undefined || input === null) return undefined;
+  if (Array.isArray(input)) return textValue(input[0]);
+  if (typeof input === "object") return textValue(input["#text"]);
+  return String(input);
 }
 
 function cryptoRandomFallback(): string {

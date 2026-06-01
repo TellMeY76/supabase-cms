@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Upload } from "lucide-react";
 
 export default function MigrationWizardPage() {
   const [sourceSiteUrl, setSourceSiteUrl] = useState("https://example.com");
@@ -10,6 +10,11 @@ export default function MigrationWizardPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const resultRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (importResult) resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [importResult]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,8 +90,29 @@ export default function MigrationWizardPage() {
         </section>
       )}
       {importResult && (
-        <section className="section">
+        <section className="section" ref={resultRef}>
+          <div className="payload-alert payload-alert--success">
+            <CheckCircle2 size={18} />
+            <span>
+              {importResult.message ?? "Import completed."} Imported {importResult.imported ?? 0}, updated{" "}
+              {importResult.updated ?? 0}, skipped {importResult.skipped ?? 0}.
+            </span>
+          </div>
           <h2>Import result</h2>
+          <div className="payload-grid" style={{ marginBottom: 14 }}>
+            <div className="payload-card">
+              <h3>Imported</h3>
+              <p>{importResult.imported ?? 0}</p>
+            </div>
+            <div className="payload-card">
+              <h3>Updated</h3>
+              <p>{importResult.updated ?? 0}</p>
+            </div>
+            <div className="payload-card">
+              <h3>Skipped</h3>
+              <p>{importResult.skipped ?? 0}</p>
+            </div>
+          </div>
           <pre className="card__body" style={{ overflow: "auto", background: "#fff", border: "1px solid var(--line)" }}>
             {JSON.stringify(importResult, null, 2)}
           </pre>

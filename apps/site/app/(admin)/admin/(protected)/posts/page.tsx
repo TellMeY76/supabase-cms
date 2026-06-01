@@ -3,18 +3,22 @@ import {
   deletePostAction,
   updatePostStatusAction,
 } from "@/app/(admin)/admin/actions";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 import { listAdminPostCategories, listAdminPosts } from "@/lib/admin-data";
 
 export default async function AdminPostsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string }>;
+  searchParams: Promise<{ error?: string; page?: string; success?: string }>;
 }) {
-  const [{ error, success }, posts, categories] = await Promise.all([
+  const [{ error, page: pageParam, success }, posts, categories] = await Promise.all([
     searchParams,
     listAdminPosts(),
     listAdminPostCategories(),
   ]);
+  const perPage = 20;
+  const page = clampPage(pageParam, posts.length, perPage);
+  const pagedPosts = posts.slice((page - 1) * perPage, page * perPage);
   const categoriesById = new Map(categories.map(c => [c.id, c]));
 
   return (
@@ -36,46 +40,49 @@ export default async function AdminPostsPage({
         <div className="payload-alert payload-alert--success">{success}</div>
       )}
 
-      <div className="payload-table-wrap">
-        <table className="payload-table">
+      <div className="payload-table-wrap payload-table-wrap--sticky-actions">
+        <table className="payload-table payload-table--posts">
           <thead>
             <tr>
               <th>Title</th>
               <th>Categories</th>
               <th>Status</th>
               <th>Date</th>
-              <th>Actions</th>
+              <th className="payload-actions-column">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {posts.map(post => {
+            {pagedPosts.map(post => {
               const postCategories = (post.categoryIds ?? [])
                 .map(id => categoriesById.get(id)?.title)
                 .filter(Boolean);
 
               return (
                 <tr key={post.id}>
-                  <td>
-                    <Link href={`/admin/posts/${post.id}`}>{post.title}</Link>
+                  <td className="payload-title-column">
+                    <div className="payload-title-cell">
+                      <Link href={`/admin/posts/${post.id}`}>{post.title}</Link>
+                      <span>{post.slug}</span>
+                    </div>
                   </td>
-                  <td>
+                  <td className="payload-nowrap">
                     <span className="payload-categories-cell">
                       {postCategories.length > 0
                         ? postCategories.join(", ")
                         : "Uncategorized"}
                     </span>
                   </td>
-                  <td>
+                  <td className="payload-nowrap">
                     <span className={`payload-status payload-status--${post.status}`}>
                       {post.status}
                     </span>
                   </td>
-                  <td>
+                  <td className="payload-nowrap">
                     {new Date(
                       post.publishedAt ?? post.updatedAt
                     ).toLocaleDateString()}
                   </td>
-                  <td>
+                  <td className="payload-actions-column">
                     <div className="payload-table-actions">
                       <Link
                         className="payload-button payload-button--small"
@@ -119,6 +126,20 @@ export default async function AdminPostsPage({
           </tbody>
         </table>
       </div>
+      <AdminPagination
+        basePath="/admin/posts"
+        page={page}
+        perPage={perPage}
+        query={{ error, success }}
+        total={posts.length}
+      />
     </div>
   );
+}
+
+function clampPage(pageParam: string | undefined, total: number, perPage: number) {
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const page = Number(pageParam ?? "1");
+  if (!Number.isFinite(page)) return 1;
+  return Math.min(Math.max(Math.floor(page), 1), totalPages);
 }

@@ -3,17 +3,34 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
 
-export function InquiryForm({ productId, sourceUrl }: { productId?: string; sourceUrl?: string }) {
+export function InquiryForm({
+  formType,
+  productId,
+  sourceUrl
+}: {
+  formType?: "product_inquiry" | "contact" | string;
+  productId?: string;
+  sourceUrl?: string;
+}) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("sending");
     const form = new FormData(event.currentTarget);
+    const resolvedFormType = formType ?? (productId ? "product_inquiry" : "contact");
+    const fields = {
+      company: form.get("company"),
+      phone: form.get("phone"),
+      messenger: form.get("messenger"),
+      requirements: form.get("message")
+    };
     const response = await fetch("/api/inquiries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        formType: resolvedFormType,
+        subject: productId ? "Product inquiry" : "Contact inquiry",
         name: form.get("name"),
         email: form.get("email"),
         phone: form.get("phone"),
@@ -21,7 +38,14 @@ export function InquiryForm({ productId, sourceUrl }: { productId?: string; sour
         company: form.get("company"),
         message: form.get("message"),
         productId,
-        sourceUrl
+        sourceUrl,
+        fields,
+        fieldLabels: {
+          company: "Company",
+          phone: "Phone / WhatsApp / WeChat",
+          messenger: "Messenger ID",
+          requirements: "Product requirements"
+        }
       })
     });
     setStatus(response.ok ? "sent" : "error");
@@ -29,28 +53,28 @@ export function InquiryForm({ productId, sourceUrl }: { productId?: string; sour
   }
 
   return (
-    <form className="form" onSubmit={onSubmit}>
-      <div className="field">
+    <form className="inquiry-form" onSubmit={onSubmit}>
+      <div className="inquiry-field">
         <label htmlFor="name">Name</label>
         <input id="name" name="name" required />
       </div>
-      <div className="field">
+      <div className="inquiry-field">
         <label htmlFor="email">Email</label>
         <input id="email" type="email" name="email" required />
       </div>
-      <div className="field">
+      <div className="inquiry-field">
         <label htmlFor="company">Company</label>
         <input id="company" name="company" />
       </div>
-      <div className="field">
+      <div className="inquiry-field">
         <label htmlFor="phone">Phone / WhatsApp / WeChat</label>
         <input id="phone" name="phone" />
       </div>
-      <div className="field">
+      <div className="inquiry-field">
         <label htmlFor="messenger">Messenger ID</label>
         <input id="messenger" name="messenger" />
       </div>
-      <div className="field">
+      <div className="inquiry-field">
         <label htmlFor="message">Product requirements</label>
         <textarea
           id="message"
@@ -60,12 +84,12 @@ export function InquiryForm({ productId, sourceUrl }: { productId?: string; sour
           required
         />
       </div>
-      <button className="button" type="submit" disabled={status === "sending"}>
+      <button className="inshow-button" type="submit" disabled={status === "sending"}>
         <Send size={16} />
-        <span style={{ marginLeft: 8 }}>{status === "sending" ? "Sending" : "Send inquiry"}</span>
+        <span>{status === "sending" ? "Sending" : "Send inquiry"}</span>
       </button>
-      {status === "sent" && <p>Your inquiry has been received.</p>}
-      {status === "error" && <p style={{ color: "var(--danger)" }}>Submission failed. Please try again.</p>}
+      {status === "sent" && <p className="rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">Your inquiry has been received.</p>}
+      {status === "error" && <p className="rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">Submission failed. Please try again.</p>}
     </form>
   );
 }

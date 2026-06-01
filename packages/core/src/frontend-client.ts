@@ -50,6 +50,7 @@ export class FrontendDataClient {
       displayTitle: row.display_title ?? undefined,
       description: row.description ?? undefined,
       parentId: row.parent_id ?? undefined,
+      image: row.image ?? undefined,
       seo: row.seo ?? undefined,
       source: row.source ?? undefined
     }));

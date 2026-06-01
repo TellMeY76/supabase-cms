@@ -1,20 +1,30 @@
+"use client";
+
 import type { ProductCategory } from "@global-trade/core";
 import { saveProductCategoryAction } from "@/app/(admin)/admin/actions";
+import { FileDropzone } from "./FileDropzone";
 
 export function ProductCategoryForm({
   category,
-  categories
+  categories,
+  compact = false,
+  defaultParentId,
+  submitLabel = "Save category"
 }: {
   category?: Partial<ProductCategory>;
   categories: ProductCategory[];
+  compact?: boolean;
+  defaultParentId?: string;
+  submitLabel?: string;
 }) {
   const parentOptions = categories.filter((item) => item.id !== category?.id);
+  const parentId = category?.parentId ?? defaultParentId ?? "";
 
   return (
     <form action={saveProductCategoryAction} className="payload-form">
       {category?.id && <input name="id" type="hidden" value={category.id} />}
       <section className="payload-form-section">
-        <h2>Category</h2>
+        {!compact && <h2>Category</h2>}
         <div className="payload-field">
           <label htmlFor="title">Title</label>
           <input id="title" name="title" required defaultValue={category?.title ?? ""} />
@@ -29,7 +39,7 @@ export function ProductCategoryForm({
         </div>
         <div className="payload-field">
           <label htmlFor="parentId">Parent category</label>
-          <select id="parentId" name="parentId" defaultValue={category?.parentId ?? ""}>
+          <select id="parentId" name="parentId" defaultValue={parentId}>
             <option value="">No parent</option>
             {parentOptions.map((item) => (
               <option key={item.id} value={item.id}>
@@ -42,9 +52,17 @@ export function ProductCategoryForm({
           <label htmlFor="description">Description</label>
           <textarea id="description" name="description" rows={4} defaultValue={category?.description ?? ""} />
         </div>
+        <div className="payload-field">
+          <label>Category image</label>
+          <FileDropzone
+            name="imageUrl"
+            defaultValue={category?.image?.publicUrl ?? undefined}
+            label="拖拽分类图片到此处，或点击选择"
+          />
+        </div>
       </section>
       <section className="payload-form-section">
-        <h2>SEO</h2>
+        {!compact && <h2>SEO</h2>}
         <div className="payload-field">
           <label htmlFor="seoTitle">SEO title</label>
           <input id="seoTitle" name="seoTitle" defaultValue={category?.seo?.title ?? ""} />
@@ -67,7 +85,7 @@ export function ProductCategoryForm({
         </label>
       </section>
       <button className="payload-button" type="submit">
-        Save category
+        {submitLabel}
       </button>
     </form>
   );

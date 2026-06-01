@@ -26,7 +26,7 @@ export async function importMigrationEntities(
   };
 
   const mediaByUrl = await importMediaAssets(supabase, entities, result);
-  const productCategoryIds = await importProductCategories(supabase, entities, result);
+  const productCategoryIds = await importProductCategories(supabase, entities, result, mediaByUrl);
   const productTagIds = await importProductTags(supabase, entities, result);
   const postCategoryIds = await importPostCategories(supabase, entities, result);
   const postTagIds = await importPostTags(supabase, entities, result);
@@ -36,10 +36,11 @@ export async function importMigrationEntities(
 
     if (entity.kind === "product") {
       const gallery = (entity.data.gallery ?? []).map((asset) => mediaByUrl.get(asset.publicUrl) ?? asset);
-      await upsertBySource(
+      await upsertBySourceOrSlug(
         supabase,
         "products",
         entity.source,
+        entity.data.slug,
         {
           slug: entity.data.slug,
           title: entity.data.title,
@@ -73,10 +74,11 @@ export async function importMigrationEntities(
     }
 
     if (entity.kind === "post") {
-      await upsertBySource(
+      await upsertBySourceOrSlug(
         supabase,
         "posts",
         entity.source,
+        entity.data.slug,
         {
           slug: entity.data.slug,
           title: entity.data.title,
@@ -101,10 +103,11 @@ export async function importMigrationEntities(
     }
 
     if (entity.kind === "page") {
-      await upsertBySource(
+      await upsertBySourceOrSlug(
         supabase,
         "pages",
         entity.source,
+        entity.data.slug,
         {
           slug: entity.data.slug,
           title: entity.data.title,
@@ -132,14 +135,19 @@ async function importMediaAssets(
 ) {
   const mediaByUrl = new Map<string, any>();
   for (const entity of entities.filter((item) => item.kind === "media")) {
-    const row = await upsertBySource(
+    const sourceUrl = entity.data.sourceUrl;
+    const cached = mediaByUrl.get(sourceUrl);
+    if (cached) {
+      result.skipped += 1;
+      continue;
+    }
+
+    const row = await upsertMediaByUrl(
       supabase,
-      "media_assets",
-      entity.source,
       {
         kind: "remote",
-        storage_path: entity.data.sourceUrl,
-        public_url: entity.data.sourceUrl,
+        storage_path: sourceUrl,
+        public_url: sourceUrl,
         alt: entity.data.alt ?? null,
         title: entity.data.title ?? null,
         caption: entity.data.caption ?? null,
@@ -150,7 +158,7 @@ async function importMediaAssets(
       },
       result
     );
-    if (row?.id) mediaByUrl.set(entity.data.sourceUrl, mapMediaAsset(row, entity.data.sourceUrl));
+    if (row?.id) mediaByUrl.set(sourceUrl, mapMediaAsset(row, sourceUrl));
   }
   return mediaByUrl;
 }
@@ -158,24 +166,26 @@ async function importMediaAssets(
 async function importProductCategories(
   supabase: SupabaseServerClient,
   entities: MigrationEntity[],
-  result: MigrationImportResult
+  result: MigrationImportResult,
+  mediaByUrl: Map<string, any>
 ) {
   const categoryIds = new Map<string, string>();
   for (const entity of entities.filter((item) => item.kind === "productCategory")) {
     const parentId = entity.data.parentId ? categoryIds.get(entity.data.parentId) ?? null : null;
-    const row = await upsertBySource(
+    const row = await upsertBySlug(
       supabase,
       "product_categories",
-      entity.source,
-      {
+      entity.data.slug,
+      compactPayload({
         slug: entity.data.slug,
         title: entity.data.title,
         display_title: entity.data.displayTitle ?? entity.data.title.replace(/^-\s*/, ""),
         description: entity.data.description ?? null,
         parent_id: parentId,
+        image: entity.data.image ? mediaByUrl.get(entity.data.image.publicUrl) ?? entity.data.image : undefined,
         seo: entity.data.seo ?? {},
         source: entity.source
-      },
+      }),
       result
     );
     if (row?.id) {
@@ -193,10 +203,10 @@ async function importProductTags(
 ) {
   const tagIds = new Map<string, string>();
   for (const entity of entities.filter((item) => item.kind === "productTag")) {
-    const row = await upsertBySource(
+    const row = await upsertBySlug(
       supabase,
       "product_tags",
-      entity.source,
+      entity.data.slug,
       { slug: entity.data.slug, title: entity.data.title, source: entity.source },
       result
     );
@@ -216,10 +226,10 @@ async function importPostCategories(
   const categoryIds = new Map<string, string>();
   for (const entity of entities.filter((item) => item.kind === "postCategory")) {
     const parentId = entity.data.parentId ? categoryIds.get(entity.data.parentId) ?? null : null;
-    const row = await upsertBySource(
+    const row = await upsertBySlug(
       supabase,
       "post_categories",
-      entity.source,
+      entity.data.slug,
       { slug: entity.data.slug, title: entity.data.title, parent_id: parentId, source: entity.source },
       result
     );
@@ -238,10 +248,10 @@ async function importPostTags(
 ) {
   const tagIds = new Map<string, string>();
   for (const entity of entities.filter((item) => item.kind === "postTag")) {
-    const row = await upsertBySource(
+    const row = await upsertBySlug(
       supabase,
       "post_tags",
-      entity.source,
+      entity.data.slug,
       { slug: entity.data.slug, title: entity.data.title, source: entity.source },
       result
     );
@@ -283,6 +293,125 @@ async function upsertBySource(
   return data;
 }
 
+async function upsertBySourceOrSlug(
+  supabase: SupabaseServerClient,
+  table: string,
+  source: MigrationEntity["source"],
+  slug: string,
+  payload: Record<string, unknown>,
+  result: MigrationImportResult
+): Promise<Record<string, any> | null> {
+  const { data: existingBySource, error: sourceError } = await supabase
+    .from(table)
+    .select("*")
+    .eq("source->>siteUrl", source.siteUrl)
+    .eq("source->>sourceType", source.sourceType)
+    .eq("source->>sourceId", source.sourceId)
+    .maybeSingle();
+
+  if (sourceError) throw new Error(sourceError.message);
+
+  const existing = existingBySource ?? (await selectBySlug(supabase, table, slug));
+  if (existing?.id) {
+    const { data, error } = await supabase
+      .from(table)
+      .update({ ...payload, source: mergeMediaSource(existing.source, payload.source) })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    result.updated += 1;
+    return data;
+  }
+
+  const { data, error } = await supabase.from(table).insert(payload).select("*").single();
+  if (error) throw new Error(error.message);
+  result.imported += 1;
+  return data;
+}
+
+async function selectBySlug(supabase: SupabaseServerClient, table: string, slug: string) {
+  const { data, error } = await supabase.from(table).select("*").eq("slug", slug).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function upsertBySlug(
+  supabase: SupabaseServerClient,
+  table: string,
+  slug: string,
+  payload: Record<string, unknown>,
+  result: MigrationImportResult
+): Promise<Record<string, any> | null> {
+  const { data: existing, error: selectError } = await supabase
+    .from(table)
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (selectError) throw new Error(selectError.message);
+
+  if (existing?.id) {
+    const { data, error } = await supabase
+      .from(table)
+      .update({ ...payload, source: mergeMediaSource(existing.source, payload.source) })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    result.updated += 1;
+    return data;
+  }
+
+  const { data, error } = await supabase.from(table).insert(payload).select("*").single();
+  if (error) throw new Error(error.message);
+  result.imported += 1;
+  return data;
+}
+
+async function upsertMediaByUrl(
+  supabase: SupabaseServerClient,
+  payload: Record<string, unknown>,
+  result: MigrationImportResult
+): Promise<Record<string, any> | null> {
+  const storagePath = String(payload.storage_path ?? "");
+  const { data: existing, error: selectError } = await supabase
+    .from("media_assets")
+    .select("*")
+    .eq("storage_path", storagePath)
+    .maybeSingle();
+
+  if (selectError) throw new Error(selectError.message);
+
+  if (existing?.id) {
+    const mergedSource = mergeMediaSource(existing.source, payload.source);
+    const { data, error } = await supabase
+      .from("media_assets")
+      .update({ ...payload, source: mergedSource })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    result.updated += 1;
+    return data;
+  }
+
+  const { data, error } = await supabase.from("media_assets").insert(payload).select("*").single();
+  if (error) throw new Error(error.message);
+  result.imported += 1;
+  return data;
+}
+
+function mergeMediaSource(existing: unknown, next: unknown) {
+  if (!existing) return next;
+  const sources = Array.isArray((existing as { sources?: unknown[] }).sources)
+    ? [...((existing as { sources: unknown[] }).sources)]
+    : [existing];
+  const key = JSON.stringify(next);
+  if (!sources.some((source) => JSON.stringify(source) === key)) sources.push(next);
+  return { primary: sources[0], sources };
+}
+
 function htmlToEditorSeed(html: string) {
   return { format: "html", html };
 }
@@ -302,4 +431,8 @@ function mapMediaAsset(row: Record<string, any>, fallbackUrl: string) {
     height: row.height ?? undefined,
     source: row.source ?? undefined
   };
+}
+
+function compactPayload(input: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
 }

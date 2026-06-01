@@ -38,4 +38,29 @@ describe("WooCommerce CSV parser", () => {
       );
     }
   });
+
+  it("maps WooCommerce product category thumbnails from category CSV exports", () => {
+    const csv = [
+      "ID,Name,Slug,Parent,Description,Thumbnail",
+      "11,PREFAB HOUSE,prefab-house,,Top category,https://example.com/wp-content/uploads/prefab.jpg",
+      "12,- Container House,container-house,prefab-house,Child category,https://example.com/wp-content/uploads/container.jpg"
+    ].join("\n");
+
+    const result = parseWooCommerceProductsCsv(csv, "https://example.com");
+    const categories = result.entities.filter((entity) => entity.kind === "productCategory");
+
+    expect(categories).toHaveLength(2);
+    expect(result.entities.filter((entity) => entity.kind === "media")).toHaveLength(2);
+    expect(categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          data: expect.objectContaining({
+            slug: "container-house",
+            parentId: "prefab-house",
+            image: expect.objectContaining({ publicUrl: "https://example.com/wp-content/uploads/container.jpg" })
+          })
+        })
+      ])
+    );
+  });
 });

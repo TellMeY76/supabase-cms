@@ -107,6 +107,7 @@ export interface ProductCategory {
   displayTitle?: string | undefined;
   description?: string | undefined;
   parentId?: string | undefined;
+  image?: MediaAsset | undefined;
   seo?: SeoFields | undefined;
   source?: SourceIdentity | undefined;
 }
@@ -192,6 +193,8 @@ export interface Page {
 export interface Inquiry {
   id: string;
   status: InquiryStatus;
+  formType: string;
+  subject?: string | undefined;
   name: string;
   email: string;
   phone?: string | undefined;
@@ -200,8 +203,11 @@ export interface Inquiry {
   message: string;
   productId?: string | undefined;
   sourceUrl?: string | undefined;
+  payload?: Record<string, unknown> | undefined;
+  fieldLabels?: Record<string, string> | undefined;
   metadata?: Record<string, unknown> | undefined;
   createdAt: string;
+  updatedAt?: string | undefined;
 }
 
 export interface SourceIdentity {

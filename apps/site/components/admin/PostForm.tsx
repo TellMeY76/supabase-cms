@@ -3,10 +3,9 @@ import { savePostAction } from "@/app/(admin)/admin/actions";
 import { emptyRichTextDocument } from "@/lib/rich-text";
 import { RichTextEditor } from "./RichTextEditor";
 import { FileDropzone } from "./FileDropzone";
+import { CategoryTreeSelect } from "./CategoryTreeSelect";
 
 export function PostForm({ post, categories = [] }: { post?: Partial<Post> & { contentJson?: unknown }; categories?: PostCategory[] }) {
-  const selectedCategories = new Set(post?.categoryIds ?? []);
-
   return (
     <form action={savePostAction} className="payload-form">
       {post?.id && <input name="id" type="hidden" value={post.id} />}
@@ -25,14 +24,8 @@ export function PostForm({ post, categories = [] }: { post?: Partial<Post> & { c
           <textarea id="excerpt" name="excerpt" rows={3} defaultValue={post?.excerpt ?? ""} />
         </div>
         <div className="payload-field">
-          <label htmlFor="categoryIds">Categories</label>
-          <select id="categoryIds" name="categoryIds" multiple defaultValue={[...selectedCategories]}>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.title}
-              </option>
-            ))}
-          </select>
+          <label>Categories</label>
+          <CategoryTreeSelect categories={categories} selectedIds={post?.categoryIds ?? []} />
         </div>
         <div className="payload-field">
           <label htmlFor="author">Author</label>

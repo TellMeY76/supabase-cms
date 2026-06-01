@@ -112,5 +112,8 @@ function looksLikeWxr(text: string): boolean {
 
 function looksLikeWooCsv(text: string): boolean {
   const header = text.slice(0, 1000).toLowerCase();
-  return header.includes("name") && (header.includes("images") || header.includes("categories")) && header.includes("published");
+  return (
+    (header.includes("name") && (header.includes("images") || header.includes("categories")) && header.includes("published")) ||
+    (header.includes("name") && header.includes("thumbnail") && header.includes("slug"))
+  );
 }

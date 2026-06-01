@@ -44,6 +44,7 @@ create table public.product_categories (
   display_title text,
   description text,
   parent_id uuid references public.product_categories(id) on delete set null,
+  image jsonb,
   seo jsonb not null default '{}',
   source jsonb,
   created_at timestamptz not null default now(),
@@ -143,6 +144,8 @@ create table public.pages (
 create table public.inquiries (
   id uuid primary key default gen_random_uuid(),
   status public.inquiry_status not null default 'new',
+  form_type text not null default 'product_inquiry',
+  subject text,
   name text not null,
   email text not null,
   phone text,
@@ -151,6 +154,8 @@ create table public.inquiries (
   message text not null,
   product_id uuid references public.products(id) on delete set null,
   source_url text,
+  payload jsonb not null default '{}',
+  field_labels jsonb not null default '{}',
   metadata jsonb not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -198,6 +203,7 @@ create index posts_status_published_idx on public.posts(status, published_at des
 create index pages_status_updated_idx on public.pages(status, updated_at desc);
 create index inquiries_status_created_idx on public.inquiries(status, created_at desc);
 create index inquiries_product_id_idx on public.inquiries(product_id);
+create index inquiries_form_type_created_idx on public.inquiries(form_type, created_at desc);
 create index migration_items_batch_idx on public.migration_items(batch_id, status);
 create index migration_batches_created_by_idx on public.migration_batches(created_by);
 create index product_categories_parent_id_idx on public.product_categories(parent_id);
@@ -530,11 +536,19 @@ on public.inquiries for insert
 to anon, authenticated
 with check (
   status = 'new'
+  and form_type ~ '^[a-z][a-z0-9_]{0,63}$'
   and char_length(trim(name)) between 1 and 200
   and email ~* '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$'
   and char_length(trim(message)) between 1 and 5000
+  and (subject is null or char_length(subject) <= 300)
   and (phone is null or char_length(phone) <= 80)
+  and (messenger is null or char_length(messenger) <= 120)
   and (company is null or char_length(company) <= 200)
+  and jsonb_typeof(payload) = 'object'
+  and jsonb_typeof(field_labels) = 'object'
+  and octet_length(payload::text) <= 20000
+  and octet_length(field_labels::text) <= 10000
+  and octet_length(metadata::text) <= 10000
 );
 
 create policy "staff can read inquiries"
