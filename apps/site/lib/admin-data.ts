@@ -7,6 +7,7 @@ type AdminPost = Post & { contentJson?: unknown };
 type AdminProduct = Product & { contentJson?: unknown };
 type AdminProductCategory = ProductCategory & { updatedAt?: string | undefined };
 type AdminPostCategory = PostCategory & { createdAt?: string; updatedAt?: string };
+type ProfileRow = Record<"id" | "email" | "full_name" | "role" | "created_at" | "updated_at", unknown>;
 
 export type AdminInquiry = Inquiry & {
   product?: Pick<Product, "id" | "slug" | "title"> | null;
@@ -221,7 +222,7 @@ async function listAdminUsersFromAuth(): Promise<AdminUser[]> {
   if (authError) throw authError;
 
   const ids = authData.users.map((user) => user.id);
-  const profilesById = new Map<string, Record<string, any>>();
+  const profilesById = new Map<string, ProfileRow>();
 
   if (ids.length > 0) {
     const { data: profiles, error: profilesError } = await supabase
@@ -229,13 +230,13 @@ async function listAdminUsersFromAuth(): Promise<AdminUser[]> {
       .select("id,email,full_name,role,created_at,updated_at")
       .in("id", ids);
     if (profilesError) throw profilesError;
-    profiles.forEach((profile) => profilesById.set(String(profile.id), profile));
+    profiles.forEach((profile) => profilesById.set(String(profile.id), profile as ProfileRow));
   }
 
   return authData.users
     .map((user) => {
       const profile = profilesById.get(user.id);
-    return {
+      return {
         id: user.id,
         email: user.email ?? String(profile?.email ?? ""),
         fullName: String(profile?.full_name ?? user.user_metadata?.full_name ?? user.user_metadata?.name ?? "") || null,

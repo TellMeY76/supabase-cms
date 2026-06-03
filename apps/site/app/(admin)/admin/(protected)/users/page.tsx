@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { deleteUserAction, updateUserRoleAction } from "@/app/(admin)/admin/actions";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { requireAdminRole } from "@/lib/auth";
 import { listAdminUsers } from "@/lib/admin-data";
 import { isSupabaseServiceRoleConfigured } from "@/lib/supabase";
@@ -26,9 +27,12 @@ export default async function AdminUsersPage({
           <h1>Users</h1>
           <p>Create users, assign roles, and remove accounts.</p>
         </div>
-        <Link className="payload-button" href="/admin/users/new">
-          New User
-        </Link>
+        <div className="payload-page-actions">
+          <RefreshButton />
+          <Link className="payload-button" href="/admin/users/new">
+            New User
+          </Link>
+        </div>
       </div>
 
       {!hasServiceRole && (

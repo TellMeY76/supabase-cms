@@ -45,7 +45,13 @@ export const siteConfig: SiteConfig = {
         { label: "Contact", href: "/contact" }
       ]
     }
-  ]
+  ],
+  i18n: {
+    defaultLocale: "en",
+    fallbackLocale: "en",
+    routingStrategy: "none",
+    locales: [{ code: "en", label: "English", enabled: true }]
+  }
 };
 
 export async function getRuntimeSiteConfig(): Promise<SiteConfig> {

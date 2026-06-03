@@ -24,6 +24,7 @@ export function parseWooCommerceProductsCsv(csv: string, sourceSiteUrl: string):
   const detectedSeoPlugins = new Set<string>();
   const categorySlugs = new Map<string, { title: string; parentId?: string | undefined }>();
   const tagSlugs = new Set<string>();
+  const productSlugs = new Set<string>();
 
   if (looksLikeProductCategoryExport(records)) {
     for (const record of records) {
@@ -91,7 +92,7 @@ export function parseWooCommerceProductsCsv(csv: string, sourceSiteUrl: string):
   for (const record of records) {
     const sourceId = value(record.ID) ?? value(record.id) ?? value(record.SKU) ?? value(record.Name) ?? cryptoRandomFallback();
     const name = value(record.Name) ?? value(record.name) ?? "Untitled product";
-    const slug = value(record.Slug) ?? value(record.slug) ?? slugify(name);
+    const slug = uniqueProductSlug(value(record.Slug) ?? value(record.slug) ?? slugify(name), sourceId, productSlugs);
     const source = {
       siteUrl: sourceSiteUrl,
       sourceType: "woocommerce:product",
@@ -296,6 +297,24 @@ function parseCategoryPaths(input: string | undefined): ParsedCategory[][] {
 function value(input: string | undefined): string | undefined {
   const trimmed = input?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function uniqueProductSlug(baseSlug: string, sourceId: string, usedSlugs: Set<string>) {
+  const normalizedBase = slugify(baseSlug);
+  if (!usedSlugs.has(normalizedBase)) {
+    usedSlugs.add(normalizedBase);
+    return normalizedBase;
+  }
+
+  const suffix = slugify(sourceId, "duplicate");
+  let candidate = `${normalizedBase}-${suffix}`;
+  let counter = 2;
+  while (usedSlugs.has(candidate)) {
+    candidate = `${normalizedBase}-${suffix}-${counter}`;
+    counter += 1;
+  }
+  usedSlugs.add(candidate);
+  return candidate;
 }
 
 function splitList(input: string | undefined): string[] {

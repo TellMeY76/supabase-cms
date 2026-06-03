@@ -60,7 +60,7 @@ export async function detectConnector(context: MigrationContext, connectors = de
 }
 
 async function fetchWordPressTotals(sourceSiteUrl: string): Promise<Record<string, number> | undefined> {
-  if (!sourceSiteUrl.includes("inshowhome.com")) return undefined;
+  if (!isHttpUrl(sourceSiteUrl)) return undefined;
   const endpoints = {
     product: "/wp-json/wp/v2/product?per_page=1",
     post: "/wp-json/wp/v2/posts?per_page=1",
@@ -79,6 +79,15 @@ async function fetchWordPressTotals(sourceSiteUrl: string): Promise<Record<strin
     return totals;
   } catch {
     return undefined;
+  }
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
   }
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "global-trade-site-framework",
+  "name": "edgeone-supabase-cms",
   "version": "0.1.0",
   "private": true,
   "description": "Reusable foreign-trade showcase site framework with Supabase, EdgeOne Pages, and WordPress/WooCommerce migration tools.",

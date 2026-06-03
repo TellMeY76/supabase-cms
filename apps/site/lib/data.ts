@@ -40,27 +40,8 @@ export async function getPost(slug: string): Promise<Post | null> {
 
 export async function listPosts(): Promise<Post[]> {
   if (!isSupabaseConfigured()) return mockPosts;
-  const client = createBrowserSupabaseClient();
   try {
-    const { data, error } = await client.from("posts").select("*").eq("status", "published").order("published_at", { ascending: false });
-    if (error) throw error;
-    return data.map((row) => ({
-      id: row.id,
-      slug: row.slug,
-      title: row.title,
-      status: row.status,
-      author: row.author ?? undefined,
-      excerpt: row.excerpt ?? undefined,
-      richText: row.rich_text,
-      publishedAt: row.published_at ?? undefined,
-      modifiedAt: row.modified_at ?? undefined,
-      categoryIds: row.category_ids ?? [],
-      tagIds: row.tag_ids ?? [],
-      featuredImage: row.featured_image ?? undefined,
-      seo: row.seo ?? undefined,
-      source: row.source ?? undefined,
-      updatedAt: row.updated_at
-    }));
+    return await new FrontendDataClient({ supabase: createBrowserSupabaseClient() }).listPosts(200);
   } catch {
     return [];
   }

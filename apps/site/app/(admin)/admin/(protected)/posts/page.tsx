@@ -4,6 +4,7 @@ import {
   updatePostStatusAction,
 } from "@/app/(admin)/admin/actions";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { listAdminPostCategories, listAdminPosts } from "@/lib/admin-data";
 
 export default async function AdminPostsPage({
@@ -28,9 +29,12 @@ export default async function AdminPostsPage({
           <h1>Posts</h1>
           <p>Create and edit news or article content.</p>
         </div>
-        <Link className="payload-button" href="/admin/posts/new">
-          New Post
-        </Link>
+        <div className="payload-page-actions">
+          <RefreshButton />
+          <Link className="payload-button" href="/admin/posts/new">
+            New Post
+          </Link>
+        </div>
       </div>
 
       {error && (

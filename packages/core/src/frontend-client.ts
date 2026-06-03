@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Page, Post, Product, ProductCategory, SiteConfig } from "./types";
 
+type DatabaseRow = Record<string, unknown>;
+
 export interface FrontendDataClientOptions {
   supabase: SupabaseClient;
 }
@@ -67,6 +69,17 @@ export class FrontendDataClient {
     return mapPost(data);
   }
 
+  async listPosts(limit = 24): Promise<Post[]> {
+    const { data, error } = await this.supabase
+      .from("posts")
+      .select("*")
+      .eq("status", "published")
+      .order("published_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []).map(mapPost);
+  }
+
   async getPageBySlug(slug: string): Promise<Page | null> {
     const { data, error } = await this.supabase
       .from("pages")
@@ -79,64 +92,84 @@ export class FrontendDataClient {
   }
 }
 
-function mapProduct(row: Record<string, any>): Product {
+function mapProduct(row: DatabaseRow): Product {
   return {
-    id: row.id,
-    slug: row.slug,
-    title: row.title,
-    status: row.status,
-    sku: row.sku ?? undefined,
-    productType: row.product_type ?? undefined,
-    summary: row.summary ?? undefined,
-    richText: row.rich_text ?? "",
-    legacyHtml: row.legacy_html ?? undefined,
-    categoryIds: row.category_ids ?? [],
-    tagIds: row.tag_ids ?? [],
-    primaryImage: row.primary_image ?? undefined,
-    gallery: row.gallery ?? [],
-    specifications: row.specifications ?? [],
-    regularPrice: row.regular_price ?? undefined,
-    salePrice: row.sale_price ?? undefined,
-    currency: row.currency ?? undefined,
-    priceText: row.price_text ?? undefined,
-    stockStatus: row.stock_status ?? undefined,
-    stockQuantity: row.stock_quantity ?? undefined,
-    legacyMeta: row.legacy_meta ?? undefined,
-    seo: row.seo ?? undefined,
-    source: row.source ?? undefined,
-    updatedAt: row.updated_at
+    id: stringValue(row.id),
+    slug: stringValue(row.slug),
+    title: stringValue(row.title),
+    status: stringValue(row.status) as Product["status"],
+    sku: optionalString(row.sku),
+    productType: optionalString(row.product_type),
+    summary: optionalString(row.summary),
+    richText: optionalString(row.rich_text) ?? "",
+    legacyHtml: optionalString(row.legacy_html),
+    categoryIds: stringArray(row.category_ids),
+    tagIds: stringArray(row.tag_ids),
+    primaryImage: objectValue(row.primary_image) as Product["primaryImage"],
+    gallery: arrayValue(row.gallery) as Product["gallery"],
+    specifications: arrayValue(row.specifications) as Product["specifications"],
+    regularPrice: optionalString(row.regular_price),
+    salePrice: optionalString(row.sale_price),
+    currency: optionalString(row.currency),
+    priceText: optionalString(row.price_text),
+    stockStatus: optionalString(row.stock_status),
+    stockQuantity: typeof row.stock_quantity === "number" ? row.stock_quantity : undefined,
+    legacyMeta: objectValue(row.legacy_meta),
+    seo: objectValue(row.seo) as Product["seo"],
+    source: objectValue(row.source) as Product["source"],
+    updatedAt: stringValue(row.updated_at)
   };
 }
 
-function mapPost(row: Record<string, any>): Post {
+function mapPost(row: DatabaseRow): Post {
   return {
-    id: row.id,
-    slug: row.slug,
-    title: row.title,
-    status: row.status,
-    author: row.author ?? undefined,
-    excerpt: row.excerpt ?? undefined,
-    richText: row.rich_text ?? "",
-    publishedAt: row.published_at ?? undefined,
-    modifiedAt: row.modified_at ?? undefined,
-    categoryIds: row.category_ids ?? [],
-    tagIds: row.tag_ids ?? [],
-    featuredImage: row.featured_image ?? undefined,
-    seo: row.seo ?? undefined,
-    source: row.source ?? undefined,
-    updatedAt: row.updated_at
+    id: stringValue(row.id),
+    slug: stringValue(row.slug),
+    title: stringValue(row.title),
+    status: stringValue(row.status) as Post["status"],
+    author: optionalString(row.author),
+    excerpt: optionalString(row.excerpt),
+    richText: optionalString(row.rich_text) ?? "",
+    publishedAt: optionalString(row.published_at),
+    modifiedAt: optionalString(row.modified_at),
+    categoryIds: stringArray(row.category_ids),
+    tagIds: stringArray(row.tag_ids),
+    featuredImage: objectValue(row.featured_image) as Post["featuredImage"],
+    seo: objectValue(row.seo) as Post["seo"],
+    source: objectValue(row.source) as Post["source"],
+    updatedAt: stringValue(row.updated_at)
   };
 }
 
-function mapPage(row: Record<string, any>): Page {
+function mapPage(row: DatabaseRow): Page {
   return {
-    id: row.id,
-    slug: row.slug,
-    title: row.title,
-    status: row.status,
-    richText: row.rich_text ?? "",
-    seo: row.seo ?? undefined,
-    source: row.source ?? undefined,
-    updatedAt: row.updated_at
+    id: stringValue(row.id),
+    slug: stringValue(row.slug),
+    title: stringValue(row.title),
+    status: stringValue(row.status) as Page["status"],
+    richText: optionalString(row.rich_text) ?? "",
+    seo: objectValue(row.seo) as Page["seo"],
+    source: objectValue(row.source) as Page["source"],
+    updatedAt: stringValue(row.updated_at)
   };
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : String(value ?? "");
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+function arrayValue(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
+function objectValue(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 }

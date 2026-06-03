@@ -4,6 +4,7 @@ import {
   updateProductStatusAction
 } from "@/app/(admin)/admin/actions";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { listAdminProductCategories, listAdminProducts } from "@/lib/admin-data";
 
 export default async function AdminProductsPage({
@@ -28,9 +29,12 @@ export default async function AdminProductsPage({
           <h1>Products</h1>
           <p>Create and edit product catalog entries.</p>
         </div>
-        <Link className="payload-button" href="/admin/products/new">
-          New Product
-        </Link>
+        <div className="payload-page-actions">
+          <RefreshButton />
+          <Link className="payload-button" href="/admin/products/new">
+            New Product
+          </Link>
+        </div>
       </div>
 
       {error && <div className="payload-alert payload-alert--danger">{error}</div>}

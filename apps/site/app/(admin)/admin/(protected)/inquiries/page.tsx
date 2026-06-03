@@ -1,5 +1,6 @@
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { InquiryDataDialog } from "@/components/admin/InquiryDataDialog";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { listAdminInquiries, type AdminInquiry } from "@/lib/admin-data";
 
 const perPage = 20;
@@ -20,6 +21,9 @@ export default async function AdminInquiriesPage({
         <div>
           <h1>Inquiries</h1>
           <p>Review submitted forms by date, form name, and captured form data.</p>
+        </div>
+        <div className="payload-page-actions">
+          <RefreshButton />
         </div>
       </div>
 

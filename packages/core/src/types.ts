@@ -1,4 +1,6 @@
 export type LocaleCode = "en" | "zh" | string;
+export type MediaUploadProvider = "supabase" | "ali_oss";
+export type I18nRoutingStrategy = "none" | "path-prefix";
 
 export type UserRole = "owner" | "admin" | "editor" | "sales" | "viewer";
 
@@ -43,6 +45,33 @@ export interface FooterColumn {
   links: NavigationItem[];
 }
 
+export interface LocaleConfig {
+  code: LocaleCode;
+  label: string;
+  enabled: boolean;
+}
+
+export interface I18nConfig {
+  defaultLocale: LocaleCode;
+  fallbackLocale?: LocaleCode | undefined;
+  locales: LocaleConfig[];
+  routingStrategy: I18nRoutingStrategy;
+}
+
+export interface AliOssPublicConfig {
+  bucket?: string | undefined;
+  region?: string | undefined;
+  endpoint?: string | undefined;
+  publicBaseUrl?: string | undefined;
+  pathPrefix?: string | undefined;
+}
+
+export interface MediaStorageConfig {
+  uploadProvider: MediaUploadProvider;
+  supabaseBucket?: string | undefined;
+  aliOss?: AliOssPublicConfig | undefined;
+}
+
 export interface SiteConfig {
   name: string;
   domain: string;
@@ -56,6 +85,8 @@ export interface SiteConfig {
   pageSeo?: FixedPageSeo | undefined;
   navigation: NavigationItem[];
   footer: FooterColumn[];
+  i18n?: I18nConfig | undefined;
+  media?: MediaStorageConfig | undefined;
 }
 
 export interface CustomFieldConfig {

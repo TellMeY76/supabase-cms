@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { deletePostCategoryAction } from "@/app/(admin)/admin/actions";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { listAdminPostCategories } from "@/lib/admin-data";
 
 export default async function AdminPostCategoriesPage({
@@ -17,9 +18,12 @@ export default async function AdminPostCategoriesPage({
           <h1>Post Categories</h1>
           <p>Create and edit post category structure.</p>
         </div>
-        <Link className="payload-button" href="/admin/post-categories/new">
-          New Category
-        </Link>
+        <div className="payload-page-actions">
+          <RefreshButton />
+          <Link className="payload-button" href="/admin/post-categories/new">
+            New Category
+          </Link>
+        </div>
       </div>
 
       {error && <div className="payload-alert payload-alert--danger">{error}</div>}

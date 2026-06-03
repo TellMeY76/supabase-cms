@@ -1,17 +1,59 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Database, FileArchive, Link2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Database, FileArchive, Link2, RefreshCw, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+type MigrationCounts = Record<string, number>;
+
+interface MigrationWarning {
+  code?: string;
+  message: string;
+}
+
+interface MigrationPreview {
+  connector?: string;
+  counts?: MigrationCounts;
+  warnings?: MigrationWarning[];
+}
+
+interface MigrationImportResult {
+  message?: string;
+  imported?: number;
+  updated?: number;
+  skipped?: number;
+}
+
+interface WooCommerceSyncResult {
+  message?: string;
+  fetched?: {
+    categories?: number;
+    products?: number;
+  };
+  updated?: {
+    categories?: number;
+    products?: number;
+    media?: number;
+  };
+  skipped?: {
+    products?: number;
+  };
+  warnings?: string[];
+}
 
 export default function MigrationWizardPage() {
   const [sourceSiteUrl, setSourceSiteUrl] = useState("");
   const [replacementSiteUrl, setReplacementSiteUrl] = useState("");
+  const [wooSiteUrl, setWooSiteUrl] = useState("https://inshowhome.com");
+  const [wooApiKey, setWooApiKey] = useState("");
   const [fileNames, setFileNames] = useState<string[]>([]);
-  const [preview, setPreview] = useState<any>(null);
-  const [importResult, setImportResult] = useState<any>(null);
+  const [preview, setPreview] = useState<MigrationPreview | null>(null);
+  const [importResult, setImportResult] = useState<MigrationImportResult | null>(null);
+  const [wooSyncResult, setWooSyncResult] = useState<WooCommerceSyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [wooSyncing, setWooSyncing] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const resultRef = useRef<HTMLElement>(null);
 
@@ -72,6 +114,28 @@ export default function MigrationWizardPage() {
     setImportResult(payload);
   }
 
+  async function onWooSync(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setWooSyncing(true);
+    setError(null);
+    setWooSyncResult(null);
+    const response = await fetch("/api/migrations/woocommerce-sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        siteUrl: wooSiteUrl,
+        apiKey: wooApiKey
+      })
+    });
+    const payload = await response.json();
+    setWooSyncing(false);
+    if (!response.ok) {
+      setError(payload.error ?? "WooCommerce REST sync failed");
+      return;
+    }
+    setWooSyncResult(payload);
+  }
+
   return (
     <div className="migration-page">
       <div className="payload-page-header">
@@ -79,6 +143,47 @@ export default function MigrationWizardPage() {
           <p className="payload-eyebrow">WordPress / WooCommerce</p>
           <h1>Migration Wizard</h1>
           <p>Preview imported entities, inspect warnings, then import products, posts, pages, categories, and remote media references.</p>
+        </div>
+        <div className="payload-page-actions">
+          <Dialog>
+            <DialogTrigger asChild>
+              <button className="payload-button payload-button--ghost" type="button">
+                <RefreshCw size={16} />
+                WooCommerce REST sync
+              </button>
+            </DialogTrigger>
+            <DialogContent className="woo-sync-dialog">
+              <DialogHeader>
+                <DialogTitle>Supplement from WooCommerce REST API</DialogTitle>
+              </DialogHeader>
+              <form className="woo-sync-form" onSubmit={onWooSync}>
+                <p>
+                  Fill in the old WooCommerce site. This only updates missing product/category data and keeps media as remote URLs.
+                </p>
+                <label>
+                  <span>Site URL</span>
+                  <input
+                    required
+                    placeholder="https://inshowhome.com"
+                    value={wooSiteUrl}
+                    onChange={(event) => setWooSiteUrl(event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>API key <small>optional</small></span>
+                  <input
+                    placeholder="ck_xxx, ck_xxx:cs_xxx, or consumer_key=...&consumer_secret=..."
+                    value={wooApiKey}
+                    onChange={(event) => setWooApiKey(event.target.value)}
+                  />
+                </label>
+                <button className="payload-button migration-primary-action" disabled={wooSyncing} type="submit">
+                  <RefreshCw className={wooSyncing ? "payload-refresh-icon is-spinning" : undefined} size={16} />
+                  {wooSyncing ? "Syncing" : "Start sync"}
+                </button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -213,8 +318,8 @@ export default function MigrationWizardPage() {
 
           {preview.warnings?.length ? (
             <div className="migration-warning-list">
-              {preview.warnings.slice(0, 6).map((warning: any, index: number) => (
-                <div className="payload-alert payload-alert--warning" key={`${warning.code}-${index}`}>
+              {preview.warnings.slice(0, 6).map((warning, index) => (
+                <div className="payload-alert payload-alert--warning" key={`${warning.code ?? warning.message}-${index}`}>
                   <AlertTriangle size={16} />
                   <span>{warning.message}</span>
                 </div>
@@ -230,6 +335,36 @@ export default function MigrationWizardPage() {
           <details className="migration-json-details">
             <summary>View raw preview JSON</summary>
             <pre>{JSON.stringify(preview, null, 2)}</pre>
+          </details>
+        </section>
+      )}
+      {wooSyncResult && (
+        <section className="migration-card migration-result-card">
+          <div className="payload-alert payload-alert--success">
+            <CheckCircle2 size={18} />
+            <span>{wooSyncResult.message ?? "WooCommerce REST data sync completed."}</span>
+          </div>
+          <div className="migration-result-grid migration-result-grid--wide">
+            <div><span>Fetched categories</span><strong>{wooSyncResult.fetched?.categories ?? 0}</strong></div>
+            <div><span>Fetched products</span><strong>{wooSyncResult.fetched?.products ?? 0}</strong></div>
+            <div><span>Updated categories</span><strong>{wooSyncResult.updated?.categories ?? 0}</strong></div>
+            <div><span>Updated products</span><strong>{wooSyncResult.updated?.products ?? 0}</strong></div>
+            <div><span>Remote media refs</span><strong>{wooSyncResult.updated?.media ?? 0}</strong></div>
+            <div><span>Skipped products</span><strong>{wooSyncResult.skipped?.products ?? 0}</strong></div>
+          </div>
+          {wooSyncResult.warnings?.length ? (
+            <div className="migration-warning-list">
+              {wooSyncResult.warnings.map((warning: string, index: number) => (
+                <div className="payload-alert payload-alert--warning" key={`${warning}-${index}`}>
+                  <AlertTriangle size={16} />
+                  <span>{warning}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <details className="migration-json-details">
+            <summary>View raw WooCommerce sync JSON</summary>
+            <pre>{JSON.stringify(wooSyncResult, null, 2)}</pre>
           </details>
         </section>
       )}

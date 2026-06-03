@@ -1,6 +1,7 @@
 "use server";
 
 import { createCookieSupabaseClient, requireAdminSession } from "@/lib/auth";
+import { uploadAdminMedia } from "@/lib/media-storage";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 export async function uploadFileAction(
@@ -18,30 +19,10 @@ export async function uploadFileAction(
   }
 
   const supabase = await createCookieSupabaseClient();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-  const storagePath = `admin/${Date.now()}-${safeName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from("media")
-    .upload(storagePath, await file.arrayBuffer(), {
-      contentType: file.type,
-      upsert: false,
-    });
-
-  if (uploadError) return { error: uploadError.message };
-
-  const { data } = supabase.storage.from("media").getPublicUrl(storagePath);
-  const publicUrl = data.publicUrl;
-
-  await supabase.from("media_assets").insert({
-    kind: "local",
-    storage_path: storagePath,
-    public_url: publicUrl,
-    source: { type: "admin-upload" },
-    alt: null,
-    title: null,
-    mime_type: file.type || null,
-  });
-
-  return { url: publicUrl };
+  try {
+    const uploaded = await uploadAdminMedia({ supabase, file });
+    return { url: uploaded.publicUrl };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Upload failed." };
+  }
 }

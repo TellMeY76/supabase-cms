@@ -39,7 +39,36 @@ export const siteConfigSchema = z.object({
       title: z.string().min(1),
       links: z.array(navigationItemSchema)
     })
-  )
+  ),
+  i18n: z
+    .object({
+      defaultLocale: z.string().min(2),
+      fallbackLocale: z.string().min(2).optional(),
+      routingStrategy: z.enum(["none", "path-prefix"]),
+      locales: z.array(
+        z.object({
+          code: z.string().min(2),
+          label: z.string().min(1),
+          enabled: z.boolean()
+        })
+      )
+    })
+    .optional(),
+  media: z
+    .object({
+      uploadProvider: z.enum(["supabase", "ali_oss"]),
+      supabaseBucket: z.string().min(1).optional(),
+      aliOss: z
+        .object({
+          bucket: z.string().min(1).optional(),
+          region: z.string().min(1).optional(),
+          endpoint: z.string().min(1).optional(),
+          publicBaseUrl: z.string().url().optional(),
+          pathPrefix: z.string().optional()
+        })
+        .optional()
+    })
+    .optional()
 });
 
 export const contentModelConfigSchema = z.object({

@@ -63,4 +63,25 @@ describe("WooCommerce CSV parser", () => {
       ])
     );
   });
+
+  it("keeps same-name WooCommerce products separate when exported slugs are empty", () => {
+    const csv = [
+      "ID,Name,Slug,Published,Categories,Images",
+      "9896,Roller Shade,,1,Smart Home > Motorized Blinds,https://example.com/wp-content/uploads/roller-a.jpg",
+      "10187,Roller Shade,,1,Smart Home > Motorized Blinds,https://example.com/wp-content/uploads/roller-b.jpg",
+      "10265,Intelligent door lock,,1,Smart Home > Door Lock,https://example.com/wp-content/uploads/lock-a.jpg",
+      "10273,Intelligent door lock,,1,Smart Home > Door Lock,https://example.com/wp-content/uploads/lock-b.jpg"
+    ].join("\n");
+
+    const result = parseWooCommerceProductsCsv(csv, "https://example.com");
+    const products = result.entities.filter((entity) => entity.kind === "product");
+
+    expect(products).toHaveLength(4);
+    expect(products.map((product) => product.data.slug)).toEqual([
+      "roller-shade",
+      "roller-shade-10187",
+      "intelligent-door-lock",
+      "intelligent-door-lock-10273"
+    ]);
+  });
 });

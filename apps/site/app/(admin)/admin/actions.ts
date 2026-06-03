@@ -1,8 +1,9 @@
 "use server";
 
 import { createCookieSupabaseClient, requireAdminRole, requireAdminSession } from "@/lib/auth";
+import { uploadAdminMedia } from "@/lib/media-storage";
 import { createServiceSupabaseClient, isSupabaseConfigured, isSupabaseServiceRoleConfigured } from "@/lib/supabase";
-import { slugify, type SiteConfig, type UserRole } from "@global-trade/core";
+import { slugify, type LocaleConfig, type SiteConfig, type UserRole } from "@global-trade/core";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -124,7 +125,11 @@ const settingsSchema = z.object({
   newsSeoTitle: z.string().optional(),
   newsSeoDescription: z.string().optional(),
   contactSeoTitle: z.string().optional(),
-  contactSeoDescription: z.string().optional()
+  contactSeoDescription: z.string().optional(),
+  i18nDefaultLocale: z.string().min(2),
+  i18nFallbackLocale: z.string().optional(),
+  i18nRoutingStrategy: z.enum(["none", "path-prefix"]),
+  i18nEnabledLocales: z.string().optional()
 });
 
 const mediaUploadSchema = z.object({
@@ -410,7 +415,13 @@ export async function saveSettingsAction(formData: FormData) {
       { label: "News", href: "/news" },
       { label: "Contact", href: "/contact" }
     ],
-    footer: []
+    footer: [],
+    i18n: {
+      defaultLocale: parsed.i18nDefaultLocale,
+      fallbackLocale: emptyToUndefined(parsed.i18nFallbackLocale) ?? parsed.i18nDefaultLocale,
+      routingStrategy: parsed.i18nRoutingStrategy,
+      locales: parseLocaleList(parsed.i18nEnabledLocales, parsed.i18nDefaultLocale)
+    }
   };
 
   if (isSupabaseConfigured()) {
@@ -430,26 +441,7 @@ export async function uploadMediaAction(formData: FormData) {
   if (!isSupabaseConfigured()) redirect("/admin/media");
 
   const supabase = await createCookieSupabaseClient();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-  const storagePath = `admin/${Date.now()}-${safeName}`;
-  const { error: uploadError } = await supabase.storage.from("media").upload(storagePath, await file.arrayBuffer(), {
-    contentType: file.type,
-    upsert: false
-  });
-  if (uploadError) throw new Error(uploadError.message);
-
-  const { data } = supabase.storage.from("media").getPublicUrl(storagePath);
-  const publicUrl = data.publicUrl;
-  const { error } = await supabase.from("media_assets").insert({
-    kind: "local",
-    storage_path: storagePath,
-    public_url: publicUrl,
-    source: { type: "admin-upload" },
-    alt: emptyToNull(parsed.alt),
-    title: emptyToNull(parsed.title),
-    mime_type: file.type || null
-  });
-  if (error) throw new Error(error.message);
+  await uploadAdminMedia({ supabase, file, alt: emptyToNull(parsed.alt), title: emptyToNull(parsed.title) });
 
   redirect("/admin/media");
 }
@@ -588,6 +580,29 @@ function splitLines(value?: string) {
     .split(/\r?\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parseLocaleList(value: string | undefined, defaultLocale: string): LocaleConfig[] {
+  const localeCodes = Array.from(new Set([defaultLocale, ...splitLines(value)]));
+  return localeCodes.map((code) => ({
+    code,
+    label: localeLabel(code),
+    enabled: true
+  }));
+}
+
+function localeLabel(code: string) {
+  const known: Record<string, string> = {
+    en: "English",
+    zh: "Chinese",
+    "zh-CN": "Chinese (Simplified)",
+    es: "Spanish",
+    fr: "French",
+    de: "German",
+    ar: "Arabic",
+    ru: "Russian"
+  };
+  return known[code] ?? code.toUpperCase();
 }
 
 function parseSpecifications(value?: string) {

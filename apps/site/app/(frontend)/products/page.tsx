@@ -5,6 +5,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductListInquiryForm } from "@/components/ProductListInquiryForm";
 import { ProductSortSelect, type ProductSortValue } from "@/components/ProductSortSelect";
 import { listCategories, listProducts } from "@/lib/data";
+import { categoryTitle, descendantCategoryIds } from "@/lib/frontend-helpers";
 import { inshowAssets } from "@/lib/inshow-assets";
 
 export const dynamic = "force-dynamic";
@@ -13,22 +14,27 @@ export const revalidate = 0;
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; sort?: string }>;
+  searchParams: Promise<{ category?: string; page?: string; q?: string; sort?: string }>;
 }) {
-  const [{ page, q, sort }, products, categories] = await Promise.all([
+  const [{ category, page, q, sort }, products, categories] = await Promise.all([
     searchParams,
     listProducts(),
     listCategories(),
   ]);
   const sortValue = parseSortValue(sort);
   const term = (q ?? "").trim().toLowerCase();
+  const selectedCategory = category ? categories.find((item) => item.slug === category) : undefined;
+  const selectedCategoryIds = selectedCategory ? descendantCategoryIds(selectedCategory.id, categories) : undefined;
+  const categoryFiltered = selectedCategoryIds
+    ? products.filter((product) => product.categoryIds.some((id) => selectedCategoryIds.has(id)))
+    : products;
   const filtered = term
-    ? products.filter(product =>
+    ? categoryFiltered.filter(product =>
         `${product.title} ${product.summary ?? ""} ${product.sku ?? ""}`
           .toLowerCase()
           .includes(term)
       )
-    : products;
+    : categoryFiltered;
   const sortedProducts = sortProducts(filtered, sortValue);
   const perPage = 9;
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / perPage));
@@ -64,7 +70,7 @@ export default async function ProductsPage({
         <div className="product-content-block">
           <aside className="left-columns">
             <div className="product-content-category">
-              <CategoryAccordion categories={categories} />
+              <CategoryAccordion categories={categories} selectedSlug={selectedCategory?.slug} />
             </div>
             <div className="latest-products">
               <h2 className="latest-products-title">Latest Products</h2>
@@ -100,6 +106,7 @@ export default async function ProductsPage({
             <div className="product-list-heading">
               <p>
                 Showing {showingStart}-{showingEnd} of {sortedProducts.length} results
+                {selectedCategory ? ` in ${categoryTitle(selectedCategory)}` : ""}
               </p>
               <ProductSortSelect value={sortValue} />
             </div>
@@ -112,6 +119,7 @@ export default async function ProductsPage({
               <ProductPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
+                category={selectedCategory?.slug}
                 q={q}
                 sort={sortValue}
               />
@@ -175,11 +183,13 @@ export default async function ProductsPage({
 function ProductPagination({
   currentPage,
   totalPages,
+  category,
   q,
   sort,
 }: {
   currentPage: number;
   totalPages: number;
+  category?: string | undefined;
   q: string | undefined;
   sort: ProductSortValue;
 }) {
@@ -193,7 +203,7 @@ function ProductPagination({
         ) : (
           <Link
             className={item === currentPage ? "is-active" : undefined}
-            href={productPageHref(item, q, sort)}
+            href={productPageHref(item, category, q, sort)}
             key={item}
           >
             {item}
@@ -201,15 +211,16 @@ function ProductPagination({
         )
       )}
       {currentPage < totalPages && (
-        <Link href={productPageHref(currentPage + 1, q, sort)}>→</Link>
+        <Link href={productPageHref(currentPage + 1, category, q, sort)}>→</Link>
       )}
     </nav>
   );
 }
 
-function productPageHref(page: number, q: string | undefined, sort: ProductSortValue) {
+function productPageHref(page: number, category: string | undefined, q: string | undefined, sort: ProductSortValue) {
   const params = new URLSearchParams();
   if (page > 1) params.set("page", String(page));
+  if (category) params.set("category", category);
   if (q) params.set("q", q);
   if (sort !== "default") params.set("sort", sort);
   const query = params.toString();

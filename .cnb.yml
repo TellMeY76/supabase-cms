@@ -18,4 +18,4 @@ main:
           script:
             - corepack enable
             - corepack prepare pnpm@9.15.4 --activate
-            - cd apps/site && PAGES_SOURCE=skills npx edgeone@latest pages deploy -n edgeone-supabase-cms -t "$EDGEONE_API_TOKEN"
+            - cd apps/site && PAGES_SOURCE=skills npx edgeone@latest pages deploy -n "${EDGEONE_PROJECT_NAME:-edgeone-supabase-cms}" -t "$EDGEONE_API_TOKEN"

@@ -3,6 +3,16 @@ import { getRuntimeSiteConfig } from "@/lib/site-config";
 
 export default async function SettingsPage() {
   const config = await getRuntimeSiteConfig();
+  const i18n = config.i18n ?? {
+    defaultLocale: config.locale,
+    fallbackLocale: config.locale,
+    routingStrategy: "none",
+    locales: [{ code: config.locale, label: config.locale.toUpperCase(), enabled: true }]
+  };
+  const enabledLocales = i18n.locales
+    .filter((locale) => locale.enabled)
+    .map((locale) => locale.code)
+    .join(", ");
 
   return (
     <div>
@@ -78,6 +88,33 @@ export default async function SettingsPage() {
               </div>
             </div>
           ))}
+        </section>
+        <section className="payload-form-section">
+          <h2>Internationalization</h2>
+          <p className="payload-muted">
+            These settings reserve the locale contract for future multilingual pages. The current frontend still serves the original routes.
+          </p>
+          <div className="payload-field-grid">
+            <div className="payload-field">
+              <label htmlFor="i18nDefaultLocale">Default locale</label>
+              <input id="i18nDefaultLocale" name="i18nDefaultLocale" required defaultValue={i18n.defaultLocale} />
+            </div>
+            <div className="payload-field">
+              <label htmlFor="i18nFallbackLocale">Fallback locale</label>
+              <input id="i18nFallbackLocale" name="i18nFallbackLocale" defaultValue={i18n.fallbackLocale ?? i18n.defaultLocale} />
+            </div>
+            <div className="payload-field">
+              <label htmlFor="i18nRoutingStrategy">Routing strategy</label>
+              <select id="i18nRoutingStrategy" name="i18nRoutingStrategy" defaultValue={i18n.routingStrategy}>
+                <option value="none">No locale prefix for now</option>
+                <option value="path-prefix">Path prefix later (/en, /zh-CN)</option>
+              </select>
+            </div>
+            <div className="payload-field">
+              <label htmlFor="i18nEnabledLocales">Enabled locales</label>
+              <input id="i18nEnabledLocales" name="i18nEnabledLocales" placeholder="en, zh-CN, ar" defaultValue={enabledLocales} />
+            </div>
+          </div>
         </section>
         <button className="payload-button" type="submit">
           Save settings
