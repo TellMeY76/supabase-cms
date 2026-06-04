@@ -5,22 +5,33 @@ import {
 } from "@/app/(admin)/admin/actions";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
-import { listAdminPostCategories, listAdminPosts } from "@/lib/admin-data";
+import { SplitActionsTable } from "@/components/admin/SplitActionsTable";
+import { listAdminPostCategories, listAdminPostsPage } from "@/lib/admin-data";
+
+const perPage = 20;
 
 export default async function AdminPostsPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; page?: string; success?: string }>;
 }) {
-  const [{ error, page: pageParam, success }, posts, categories] = await Promise.all([
-    searchParams,
-    listAdminPosts(),
+  const { error, page: pageParam, success } = await searchParams;
+  const [postsPage, categories] = await Promise.all([
+    listAdminPostsPage({ page: pageParam, perPage }),
     listAdminPostCategories(),
   ]);
-  const perPage = 20;
-  const page = clampPage(pageParam, posts.length, perPage);
-  const pagedPosts = posts.slice((page - 1) * perPage, page * perPage);
+  const posts = postsPage.items;
   const categoriesById = new Map(categories.map(c => [c.id, c]));
+  const postRows = posts.map((post) => {
+    const postCategories = (post.categoryIds ?? [])
+      .map(id => categoriesById.get(id)?.title)
+      .filter((title): title is string => Boolean(title));
+
+    return {
+      post,
+      postCategories
+    };
+  });
 
   return (
     <div>
@@ -44,24 +55,19 @@ export default async function AdminPostsPage({
         <div className="payload-alert payload-alert--success">{success}</div>
       )}
 
-      <div className="payload-table-wrap payload-table-wrap--sticky-actions">
-        <table className="payload-table payload-table--posts">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Categories</th>
-              <th>Status</th>
-              <th>Date</th>
-              <th className="payload-actions-column">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pagedPosts.map(post => {
-              const postCategories = (post.categoryIds ?? [])
-                .map(id => categoriesById.get(id)?.title)
-                .filter(Boolean);
-
-              return (
+      <SplitActionsTable className="payload-table-split--posts">
+        <div className="payload-table-split__scroll">
+          <table className="payload-table payload-table--posts">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Categories</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {postRows.map(({ post, postCategories }) => (
                 <tr key={post.id}>
                   <td className="payload-title-column">
                     <div className="payload-title-cell">
@@ -86,64 +92,63 @@ export default async function AdminPostsPage({
                       post.publishedAt ?? post.updatedAt
                     ).toLocaleDateString()}
                   </td>
-                  <td className="payload-actions-column">
-                    <div className="payload-table-actions">
-                      <Link
-                        className="payload-button payload-button--small"
-                        href={`/admin/posts/${post.id}`}
-                      >
-                        Edit
-                      </Link>
-                      {post.status === "published" && (
-                        <form action={updatePostStatusAction} className="payload-inline-form">
-                          <input name="id" type="hidden" value={post.id} />
-                          <input name="status" type="hidden" value="draft" />
-                          <button
-                            className="payload-button payload-button--ghost payload-button--small"
-                            type="submit"
-                          >
-                            Revert to Draft
-                          </button>
-                        </form>
-                      )}
-                      <form action={deletePostAction}>
-                        <input name="id" type="hidden" value={post.id} />
-                        <button
-                          className="payload-button payload-button--danger payload-button--small"
-                          type="submit"
-                        >
-                          Delete
-                        </button>
-                      </form>
-                    </div>
+                </tr>
+              ))}
+              {postsPage.total === 0 && (
+                <tr>
+                  <td className="payload-empty-cell" colSpan={4}>
+                    No posts found.
                   </td>
                 </tr>
-              );
-            })}
-            {posts.length === 0 && (
-              <tr>
-                <td className="payload-empty-cell" colSpan={5}>
-                  No posts found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="payload-table-split__actions" aria-label="Post actions">
+          <div className="payload-table-split__actions-head">Actions</div>
+          {postRows.map(({ post }) => (
+            <div className="payload-table-split__actions-row" key={post.id}>
+              <div className="payload-table-actions">
+                <Link
+                  className="payload-button payload-button--small"
+                  href={`/admin/posts/${post.id}`}
+                >
+                  Edit
+                </Link>
+                {post.status === "published" && (
+                  <form action={updatePostStatusAction} className="payload-inline-form">
+                    <input name="id" type="hidden" value={post.id} />
+                    <input name="status" type="hidden" value="draft" />
+                    <button
+                      className="payload-button payload-button--ghost payload-button--small"
+                      type="submit"
+                    >
+                      Revert to Draft
+                    </button>
+                  </form>
+                )}
+                <form action={deletePostAction}>
+                  <input name="id" type="hidden" value={post.id} />
+                  <button
+                    className="payload-button payload-button--danger payload-button--small"
+                    type="submit"
+                  >
+                    Delete
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))}
+          {postsPage.total === 0 && <div className="payload-table-split__actions-row payload-table-split__actions-row--empty">-</div>}
+        </div>
+      </SplitActionsTable>
       <AdminPagination
         basePath="/admin/posts"
-        page={page}
-        perPage={perPage}
+        page={postsPage.page}
+        perPage={postsPage.perPage}
         query={{ error, success }}
-        total={posts.length}
+        total={postsPage.total}
       />
     </div>
   );
-}
-
-function clampPage(pageParam: string | undefined, total: number, perPage: number) {
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
-  const page = Number(pageParam ?? "1");
-  if (!Number.isFinite(page)) return 1;
-  return Math.min(Math.max(Math.floor(page), 1), totalPages);
 }

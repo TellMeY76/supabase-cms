@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Page, Post, Product, ProductCategory, SiteConfig } from "./types";
 
 type DatabaseRow = Record<string, unknown>;
+const productListSelect =
+  "id,slug,title,status,sku,summary,category_ids,primary_image,regular_price,sale_price,currency,price_text,stock_status,updated_at" as const;
 
 export interface FrontendDataClientOptions {
   supabase: SupabaseClient;
@@ -23,7 +25,7 @@ export class FrontendDataClient {
   async listProducts(limit = 24): Promise<Product[]> {
     const { data, error } = await this.supabase
       .from("products")
-      .select("*")
+      .select(productListSelect)
       .eq("status", "published")
       .order("updated_at", { ascending: false })
       .limit(limit);

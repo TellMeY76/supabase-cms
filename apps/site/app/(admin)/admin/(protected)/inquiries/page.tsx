@@ -1,7 +1,7 @@
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { InquiryDataDialog } from "@/components/admin/InquiryDataDialog";
 import { RefreshButton } from "@/components/admin/RefreshButton";
-import { listAdminInquiries, type AdminInquiry } from "@/lib/admin-data";
+import { listAdminInquiriesPage, type AdminInquiry } from "@/lib/admin-data";
 
 const perPage = 20;
 
@@ -11,9 +11,8 @@ export default async function AdminInquiriesPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const params = await searchParams;
-  const inquiries = await listAdminInquiries();
-  const page = clampPage(params.page, inquiries.length, perPage);
-  const pagedInquiries = inquiries.slice((page - 1) * perPage, page * perPage);
+  const inquiriesPage = await listAdminInquiriesPage({ page: params.page, perPage });
+  const inquiries = inquiriesPage.items;
 
   return (
     <div>
@@ -38,7 +37,7 @@ export default async function AdminInquiriesPage({
             </tr>
           </thead>
           <tbody>
-            {pagedInquiries.map((inquiry) => {
+            {inquiries.map((inquiry) => {
               const formData = buildFormData(inquiry);
               return (
                 <tr key={inquiry.id}>
@@ -55,7 +54,7 @@ export default async function AdminInquiriesPage({
                 </tr>
               );
             })}
-            {inquiries.length === 0 && (
+            {inquiriesPage.total === 0 && (
               <tr>
                 <td className="payload-empty-cell" colSpan={4}>
                   No inquiries found.
@@ -66,7 +65,12 @@ export default async function AdminInquiriesPage({
         </table>
       </div>
 
-      <AdminPagination basePath="/admin/inquiries" page={page} perPage={perPage} total={inquiries.length} />
+      <AdminPagination
+        basePath="/admin/inquiries"
+        page={inquiriesPage.page}
+        perPage={inquiriesPage.perPage}
+        total={inquiriesPage.total}
+      />
     </div>
   );
 }
@@ -110,11 +114,4 @@ function formatFormType(value: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function clampPage(pageParam: string | undefined, total: number, pageSize: number) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const page = Number(pageParam ?? "1");
-  if (!Number.isFinite(page)) return 1;
-  return Math.min(Math.max(Math.floor(page), 1), totalPages);
 }

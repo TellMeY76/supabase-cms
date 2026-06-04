@@ -4,8 +4,7 @@ import { InquiryForm } from "@/components/InquiryForm";
 import { ReachUsSection } from "@/components/ReachUsSection";
 import { inshowAssets, inshowCategoryTiles } from "@/lib/inshow-assets";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 const statItems = [
   ["One-Stop Management", inshowAssets.statOneStop],

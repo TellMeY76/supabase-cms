@@ -8,8 +8,7 @@ import { listCategories, listProducts } from "@/lib/data";
 import { categoryTitle, descendantCategoryIds } from "@/lib/frontend-helpers";
 import { inshowAssets } from "@/lib/inshow-assets";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 export default async function ProductsPage({
   searchParams,

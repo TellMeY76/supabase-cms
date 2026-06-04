@@ -3,7 +3,7 @@
 import type { ProductCategory } from "@global-trade/core";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { categoryTitle } from "@/lib/frontend-helpers";
 
 export function CategoryAccordion({
@@ -15,6 +15,7 @@ export function CategoryAccordion({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
   const childMap = useMemo(() => buildChildMap(categories), [categories]);
   const topCategories = useMemo(() => childMap.get(null) ?? [], [childMap]);
   const initialOpenIds = useMemo(() => {
@@ -46,7 +47,9 @@ export function CategoryAccordion({
     params.set("category", category.slug);
     params.delete("page");
     const query = params.toString();
-    router.push(query ? `/products?${query}` : "/products");
+    startTransition(() => {
+      router.push(query ? `/products?${query}` : "/products");
+    });
   }
 
   return (
@@ -60,6 +63,7 @@ export function CategoryAccordion({
           onSelect={selectCategory}
           onToggle={toggle}
           openIds={openIds}
+          pending={isPending}
           selectedSlug={selectedSlug}
         />
       ))}
@@ -74,6 +78,7 @@ function CategoryNode({
   onSelect,
   onToggle,
   openIds,
+  pending,
   selectedSlug
 }: {
   category: ProductCategory;
@@ -82,6 +87,7 @@ function CategoryNode({
   onSelect: (category: ProductCategory) => void;
   onToggle: (categoryId: string) => void;
   openIds: Set<string>;
+  pending: boolean;
   selectedSlug?: string | undefined;
 }) {
   const children = childMap.get(category.id) ?? [];
@@ -95,7 +101,7 @@ function CategoryNode({
       <button
         aria-current={isSelected ? "true" : undefined}
         aria-expanded={hasChildren ? isOpen : undefined}
-        className="category-header category-action"
+        className={`category-header category-action ${pending && isSelected ? "is-pending" : ""}`}
         onClick={() => (hasChildren ? onToggle(category.id) : onSelect(category))}
         type="button"
       >
@@ -122,6 +128,7 @@ function CategoryNode({
               onSelect={onSelect}
               onToggle={onToggle}
               openIds={openIds}
+              pending={pending}
               selectedSlug={selectedSlug}
             />
           ))}

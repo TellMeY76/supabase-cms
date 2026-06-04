@@ -8,8 +8,7 @@ import { ProductGallery } from "@/components/ProductGallery";
 import { getProduct } from "@/lib/data";
 import { getRuntimeSiteConfig } from "@/lib/site-config";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 function normalizeSummaryHtml(summary?: string | null) {
   if (!summary) return "";

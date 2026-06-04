@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import type { UserRole } from "@global-trade/core";
 
 export interface AdminSession {
@@ -38,7 +39,7 @@ export async function createCookieSupabaseClient() {
   });
 }
 
-export async function getAdminSession(): Promise<AdminSession | null> {
+export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !getPublicSupabaseKey()) {
     return {
       user: { id: "local-admin", email: "local@example.com" },
@@ -65,7 +66,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
       fullName: profile?.full_name ?? null
     }
   };
-}
+});
 
 export async function requireAdminSession() {
   const session = await getAdminSession();

@@ -57,6 +57,7 @@
 }
 
 .payload-nav-item {
+  position: relative;
   min-height: 38px;
   display: flex;
   align-items: center;
@@ -65,11 +66,32 @@
   border-radius: 6px;
   color: #d4d4cc;
   font-size: 14px;
+  transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
 }
 
 .payload-nav-item:hover {
   background: #252525;
   color: #ffffff;
+}
+
+.payload-nav-item:focus-visible {
+  outline: 2px solid rgba(247, 247, 242, 0.72);
+  outline-offset: 2px;
+}
+
+.payload-nav-item.is-active {
+  background: #f7f7f2;
+  color: #151515;
+  font-weight: 750;
+}
+
+.payload-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  inset: 8px auto 8px -5px;
+  width: 3px;
+  border-radius: 999px;
+  background: #f97316;
 }
 
 .payload-workspace {
@@ -95,6 +117,84 @@
 
 .payload-content {
   padding: 28px;
+}
+
+.payload-admin-loading {
+  display: grid;
+  gap: 16px;
+}
+
+.payload-admin-loading__header,
+.payload-admin-loading__toolbar,
+.payload-admin-loading__table {
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: var(--admin-panel);
+}
+
+.payload-admin-loading__header {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+}
+
+.payload-admin-loading__header span:first-child {
+  width: min(320px, 62%);
+  height: 34px;
+}
+
+.payload-admin-loading__header span:last-child {
+  width: min(520px, 76%);
+  height: 16px;
+}
+
+.payload-admin-loading__toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+}
+
+.payload-admin-loading__toolbar span:first-child {
+  width: 180px;
+  height: 36px;
+}
+
+.payload-admin-loading__toolbar span:last-child {
+  width: 132px;
+  height: 36px;
+}
+
+.payload-admin-loading__table {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+}
+
+.payload-admin-loading__table span {
+  height: 62px;
+  border-bottom: 1px solid var(--admin-line);
+}
+
+.payload-admin-loading__table span:last-child {
+  border-bottom: 0;
+}
+
+.payload-admin-loading__header span,
+.payload-admin-loading__toolbar span,
+.payload-admin-loading__table span {
+  background: linear-gradient(90deg, #eeeeea 0%, #fafaf8 42%, #eeeeea 78%);
+  background-size: 220% 100%;
+  animation: payloadAdminLoading 1.15s ease-in-out infinite;
+}
+
+@keyframes payloadAdminLoading {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
 }
 
 .payload-eyebrow {

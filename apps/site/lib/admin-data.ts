@@ -9,6 +9,13 @@ type AdminProductCategory = ProductCategory & { updatedAt?: string | undefined }
 type AdminPostCategory = PostCategory & { createdAt?: string; updatedAt?: string };
 type ProfileRow = Record<"id" | "email" | "full_name" | "role" | "created_at" | "updated_at", unknown>;
 
+const adminPostListSelect =
+  "id,slug,title,status,author,excerpt,category_ids,tag_ids,featured_image,source,published_at,modified_at,updated_at" as const;
+const adminProductListSelect =
+  "id,slug,title,status,sku,product_type,summary,category_ids,tag_ids,primary_image,regular_price,sale_price,currency,price_text,stock_status,stock_quantity,source,updated_at" as const;
+const adminInquiryListSelect =
+  "id,status,form_type,subject,name,email,phone,messenger,company,message,product_id,source_url,payload,field_labels,metadata,created_at,updated_at,product:products(id,slug,title)" as const;
+
 export type AdminInquiry = Inquiry & {
   product?: Pick<Product, "id" | "slug" | "title"> | null;
 };
@@ -44,14 +51,60 @@ export interface AdminMediaAsset {
   createdAt: string;
 }
 
+export interface AdminDashboardStats {
+  posts: number;
+  products: number;
+  productCategories: number;
+  users: number;
+}
+
+export interface AdminPageInput {
+  page?: number | string | undefined;
+  perPage: number;
+}
+
+export interface AdminPaginatedResult<T> {
+  items: T[];
+  page: number;
+  perPage: number;
+  total: number;
+}
+
 const userRoles: UserRole[] = ["owner", "admin", "editor", "sales", "viewer"];
 
 export async function listAdminPosts(): Promise<AdminPost[]> {
   if (!isSupabaseConfigured()) return mockPosts.map(withPostContentJson);
   const supabase = await createCookieSupabaseClient();
-  const { data, error } = await supabase.from("posts").select("*").order("updated_at", { ascending: false });
+  const { data, error } = await supabase.from("posts").select(adminPostListSelect).order("updated_at", { ascending: false });
   if (error) throw error;
   return data.map(mapPost);
+}
+
+export async function listAdminPostsPage({ page, perPage }: AdminPageInput): Promise<AdminPaginatedResult<AdminPost>> {
+  const currentPage = normalizePage(page);
+  const pageSize = normalizePerPage(perPage);
+  if (!isSupabaseConfigured()) return paginateItems(mockPosts.map(withPostContentJson), currentPage, pageSize);
+
+  const supabase = await createCookieSupabaseClient();
+  const from = (currentPage - 1) * pageSize;
+  const to = from + pageSize - 1;
+  const { data, error, count } = await supabase
+    .from("posts")
+    .select(adminPostListSelect, { count: "exact" })
+    .order("updated_at", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+
+  const total = count ?? data.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (total > 0 && currentPage > totalPages) return listAdminPostsPage({ page: totalPages, perPage: pageSize });
+
+  return {
+    items: data.map(mapPost),
+    page: currentPage,
+    perPage: pageSize,
+    total
+  };
 }
 
 export async function getAdminPost(id: string): Promise<AdminPost | null> {
@@ -68,9 +121,36 @@ export async function getAdminPost(id: string): Promise<AdminPost | null> {
 export async function listAdminProducts(): Promise<AdminProduct[]> {
   if (!isSupabaseConfigured()) return mockProducts.map(withProductContentJson);
   const supabase = await createCookieSupabaseClient();
-  const { data, error } = await supabase.from("products").select("*").order("updated_at", { ascending: false });
+  const { data, error } = await supabase.from("products").select(adminProductListSelect).order("updated_at", { ascending: false });
   if (error) throw error;
   return data.map(mapProduct);
+}
+
+export async function listAdminProductsPage({ page, perPage }: AdminPageInput): Promise<AdminPaginatedResult<AdminProduct>> {
+  const currentPage = normalizePage(page);
+  const pageSize = normalizePerPage(perPage);
+  if (!isSupabaseConfigured()) return paginateItems(mockProducts.map(withProductContentJson), currentPage, pageSize);
+
+  const supabase = await createCookieSupabaseClient();
+  const from = (currentPage - 1) * pageSize;
+  const to = from + pageSize - 1;
+  const { data, error, count } = await supabase
+    .from("products")
+    .select(adminProductListSelect, { count: "exact" })
+    .order("updated_at", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+
+  const total = count ?? data.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (total > 0 && currentPage > totalPages) return listAdminProductsPage({ page: totalPages, perPage: pageSize });
+
+  return {
+    items: data.map(mapProduct),
+    page: currentPage,
+    perPage: pageSize,
+    total
+  };
 }
 
 export async function getAdminProduct(id: string): Promise<AdminProduct | null> {
@@ -145,6 +225,39 @@ export async function listAdminInquiries(filters: AdminInquiryFilters = {}): Pro
   return data.map(mapInquiry);
 }
 
+export async function listAdminInquiriesPage(
+  { page, perPage }: AdminPageInput,
+  filters: AdminInquiryFilters = {}
+): Promise<AdminPaginatedResult<AdminInquiry>> {
+  const currentPage = normalizePage(page);
+  const pageSize = normalizePerPage(perPage);
+  if (!isSupabaseConfigured()) return paginateItems([], currentPage, pageSize);
+
+  const supabase = await createCookieSupabaseClient();
+  const from = (currentPage - 1) * pageSize;
+  const to = from + pageSize - 1;
+  let query = supabase
+    .from("inquiries")
+    .select(adminInquiryListSelect, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.formType) query = query.eq("form_type", filters.formType);
+  const { data, error, count } = await query;
+  if (error) throw error;
+
+  const total = count ?? data.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (total > 0 && currentPage > totalPages) return listAdminInquiriesPage({ page: totalPages, perPage: pageSize }, filters);
+
+  return {
+    items: data.map(mapInquiry),
+    page: currentPage,
+    perPage: pageSize,
+    total
+  };
+}
+
 export async function getAdminInquiry(id: string): Promise<AdminInquiry | null> {
   if (!isSupabaseConfigured()) return null;
   const supabase = await createCookieSupabaseClient();
@@ -204,6 +317,56 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   } catch {
     return [];
   }
+}
+
+export async function getAdminDashboardStats(includeUsers = false): Promise<AdminDashboardStats> {
+  if (!isSupabaseConfigured()) {
+    return {
+      posts: mockPosts.length,
+      products: mockProducts.length,
+      productCategories: mockCategories.length,
+      users: includeUsers ? 1 : 0
+    };
+  }
+
+  const supabase = await createCookieSupabaseClient();
+  const [posts, products, productCategories, users] = await Promise.all([
+    countAdminRows(supabase, "posts"),
+    countAdminRows(supabase, "products"),
+    countAdminRows(supabase, "product_categories"),
+    includeUsers ? countAdminRows(supabase, "profiles") : Promise.resolve(0)
+  ]);
+
+  return { posts, products, productCategories, users };
+}
+
+async function countAdminRows(supabase: Awaited<ReturnType<typeof createCookieSupabaseClient>>, table: string) {
+  const { count, error } = await supabase.from(table).select("id", { count: "exact", head: true });
+  if (error) return 0;
+  return count ?? 0;
+}
+
+function paginateItems<T>(items: T[], page: number, perPage: number): AdminPaginatedResult<T> {
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const currentPage = Math.min(page, totalPages);
+  return {
+    items: items.slice((currentPage - 1) * perPage, currentPage * perPage),
+    page: currentPage,
+    perPage,
+    total
+  };
+}
+
+function normalizePage(value: number | string | undefined) {
+  const page = Number(value ?? 1);
+  if (!Number.isFinite(page)) return 1;
+  return Math.max(1, Math.floor(page));
+}
+
+function normalizePerPage(value: number) {
+  if (!Number.isFinite(value)) return 20;
+  return Math.min(Math.max(Math.floor(value), 1), 100);
 }
 
 async function listAdminUsersFromProfiles(): Promise<AdminUser[]> {

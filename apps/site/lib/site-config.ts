@@ -1,5 +1,7 @@
 import type { ContentModelConfig, SiteConfig } from "@global-trade/core";
 import { FrontendDataClient, validateSiteConfig } from "@global-trade/core";
+import { unstable_cache } from "next/cache";
+import { cacheTags, FRONTEND_REVALIDATE_SECONDS } from "./cache-tags";
 import { createBrowserSupabaseClient, isSupabaseConfigured } from "./supabase";
 
 export const siteConfig: SiteConfig = {
@@ -55,6 +57,10 @@ export const siteConfig: SiteConfig = {
 };
 
 export async function getRuntimeSiteConfig(): Promise<SiteConfig> {
+  return getCachedRuntimeSiteConfig();
+}
+
+const getCachedRuntimeSiteConfig = unstable_cache(async (): Promise<SiteConfig> => {
   if (!isSupabaseConfigured()) return siteConfig;
   try {
     const remote = await new FrontendDataClient({ supabase: createBrowserSupabaseClient() }).getSiteConfig();
@@ -62,7 +68,7 @@ export async function getRuntimeSiteConfig(): Promise<SiteConfig> {
   } catch {
     return siteConfig;
   }
-}
+}, ["runtime-site-config"], { tags: [cacheTags.siteConfig], revalidate: FRONTEND_REVALIDATE_SECONDS });
 
 export const contentModelConfig: ContentModelConfig = {
   products: true,

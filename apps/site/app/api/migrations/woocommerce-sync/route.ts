@@ -1,5 +1,6 @@
 import { slugify } from "@global-trade/core";
 import { requireAdminRole, createCookieSupabaseClient } from "@/lib/auth";
+import { revalidateFrontendCache } from "@/lib/cache-tags";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
@@ -119,6 +120,7 @@ export async function POST(request: Request) {
   const categoryIdBySlug = new Map<string, string>();
   await syncCategories(supabase, siteUrl, categories, categoryIdByWooId, categoryIdBySlug, result);
   await syncProducts(supabase, siteUrl, products, categoryIdByWooId, categoryIdBySlug, result);
+  revalidateFrontendCache();
 
   return NextResponse.json({
     message: "WooCommerce REST data sync completed.",

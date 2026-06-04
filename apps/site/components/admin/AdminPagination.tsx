@@ -22,13 +22,20 @@ export function AdminPagination({
       <span>
         Page {page} of {totalPages} · {total} total
       </span>
-      <div>
-        <PaginationLink basePath={basePath} disabled={page <= 1} page={page - 1} query={query}>
+      <div className="payload-pagination-actions">
+        <PaginationLink
+          basePath={basePath}
+          disabled={page <= 1}
+          page={page - 1}
+          query={query}
+        >
           Previous
         </PaginationLink>
         {pageNumbers(page, totalPages).map((item, index) =>
           item === "gap" ? (
-            <span className="payload-pagination-gap" key={`gap-${index}`}>...</span>
+            <span className="payload-pagination-gap" key={`gap-${index}`}>
+              ...
+            </span>
           ) : (
             <PaginationLink
               active={item === page}
@@ -41,7 +48,12 @@ export function AdminPagination({
             </PaginationLink>
           )
         )}
-        <PaginationLink basePath={basePath} disabled={page >= totalPages} page={page + 1} query={query}>
+        <PaginationLink
+          basePath={basePath}
+          disabled={page >= totalPages}
+          page={page + 1}
+          query={query}
+        >
           Next
         </PaginationLink>
       </div>
@@ -65,15 +77,28 @@ function PaginationLink({
   query: Record<string, string | undefined>;
 }) {
   const href = buildHref(basePath, { ...query, page: String(page) });
-  if (disabled) return <span className="payload-button payload-button--small payload-button--ghost is-disabled">{children}</span>;
+  if (disabled)
+    return (
+      <span className="payload-button payload-button--small payload-button--ghost is-disabled">
+        {children}
+      </span>
+    );
   return (
-    <Link className={`payload-button payload-button--small ${active ? "" : "payload-button--ghost"}`} href={href}>
+    <Link
+      className={`payload-button payload-button--small ${
+        active ? "" : "payload-button--ghost"
+      }`}
+      href={href}
+    >
       {children}
     </Link>
   );
 }
 
-function buildHref(basePath: string, query: Record<string, string | undefined>) {
+function buildHref(
+  basePath: string,
+  query: Record<string, string | undefined>
+) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value) params.set(key, value);
@@ -83,7 +108,11 @@ function buildHref(basePath: string, query: Record<string, string | undefined>) 
 }
 
 function pageNumbers(page: number, totalPages: number): Array<number | "gap"> {
-  const pages = new Set([1, totalPages, page - 1, page, page + 1].filter((item) => item >= 1 && item <= totalPages));
+  const pages = new Set(
+    [1, totalPages, page - 1, page, page + 1].filter(
+      item => item >= 1 && item <= totalPages
+    )
+  );
   const sorted = [...pages].sort((a, b) => a - b);
   const result: Array<number | "gap"> = [];
   for (const item of sorted) {

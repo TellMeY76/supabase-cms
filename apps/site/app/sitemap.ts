@@ -2,8 +2,7 @@ import type { MetadataRoute } from "next";
 import { listProducts, listPosts } from "@/lib/data";
 import { getRuntimeSiteConfig } from "@/lib/site-config";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [products, posts] = await Promise.all([listProducts(), listPosts()]);

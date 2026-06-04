@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export type ProductSortValue = "default" | "popularity" | "latest" | "price-asc" | "price-desc";
@@ -8,11 +9,13 @@ export function ProductSortSelect({ value }: { value: ProductSortValue }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   return (
     <select
       aria-label="Product sorting"
-      className="product-sort-select"
+      className={`product-sort-select ${isPending ? "is-pending" : ""}`}
+      disabled={isPending}
       onChange={(event) => {
         const params = new URLSearchParams(searchParams.toString());
         const nextValue = event.target.value;
@@ -23,7 +26,9 @@ export function ProductSortSelect({ value }: { value: ProductSortValue }) {
           params.set("sort", nextValue);
         }
         const query = params.toString();
-        router.push(query ? `${pathname}?${query}` : pathname);
+        startTransition(() => {
+          router.push(query ? `${pathname}?${query}` : pathname);
+        });
       }}
       value={value}
     >

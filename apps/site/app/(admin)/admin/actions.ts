@@ -1,6 +1,12 @@
 "use server";
 
 import { createCookieSupabaseClient, requireAdminRole, requireAdminSession } from "@/lib/auth";
+import {
+  revalidatePostCache,
+  revalidateProductCache,
+  revalidateProductCategoryCache,
+  revalidateSiteConfigCache
+} from "@/lib/cache-tags";
 import { uploadAdminMedia } from "@/lib/media-storage";
 import { createServiceSupabaseClient, isSupabaseConfigured, isSupabaseServiceRoleConfigured } from "@/lib/supabase";
 import { slugify, type LocaleConfig, type SiteConfig, type UserRole } from "@global-trade/core";
@@ -173,6 +179,7 @@ export async function savePostAction(formData: FormData) {
     if (error) throw new Error(error.message);
   }
 
+  revalidatePostCache(slug);
   redirect("/admin/posts");
 }
 
@@ -223,6 +230,7 @@ export async function saveProductAction(formData: FormData) {
     if (error) throw new Error(error.message);
   }
 
+  revalidateProductCache(slug);
   redirect("/admin/products");
 }
 
@@ -255,6 +263,7 @@ export async function saveProductCategoryAction(formData: FormData) {
     if (error) throw new Error(error.message);
   }
 
+  revalidateProductCategoryCache();
   redirect("/admin/product-categories");
 }
 
@@ -277,6 +286,7 @@ export async function savePostCategoryAction(formData: FormData) {
     if (error) throw new Error(error.message);
   }
 
+  revalidatePostCache();
   redirect("/admin/post-categories");
 }
 
@@ -291,6 +301,7 @@ export async function deletePostCategoryAction(formData: FormData) {
     if (error) redirectPostCategoriesError(error.message);
   }
 
+  revalidatePostCache();
   redirectPostCategoriesSuccess("Category deleted.");
 }
 
@@ -299,12 +310,16 @@ export async function deletePostAction(formData: FormData) {
   const parsed = deleteUserSchema.safeParse(formEntries(formData));
   if (!parsed.success) redirectPostsError("Please choose a valid post to delete.");
 
+  let slug: string | undefined;
   if (isSupabaseConfigured()) {
     const supabase = await createCookieSupabaseClient();
+    const { data: post } = await supabase.from("posts").select("slug").eq("id", parsed.data.id).single();
+    slug = post?.slug;
     const { error } = await supabase.from("posts").delete().eq("id", parsed.data.id);
     if (error) redirectPostsError(error.message);
   }
 
+  revalidatePostCache(slug);
   redirectPostsSuccess("Post deleted.");
 }
 
@@ -313,12 +328,16 @@ export async function deleteProductAction(formData: FormData) {
   const parsed = deleteUserSchema.safeParse(formEntries(formData));
   if (!parsed.success) redirectProductsError("Please choose a valid product to delete.");
 
+  let slug: string | undefined;
   if (isSupabaseConfigured()) {
     const supabase = await createCookieSupabaseClient();
+    const { data: product } = await supabase.from("products").select("slug").eq("id", parsed.data.id).single();
+    slug = product?.slug;
     const { error } = await supabase.from("products").delete().eq("id", parsed.data.id);
     if (error) redirectProductsError(error.message);
   }
 
+  revalidateProductCache(slug);
   redirectProductsSuccess("Product deleted.");
 }
 
@@ -330,14 +349,19 @@ export async function updatePostStatusAction(formData: FormData) {
 
   if (isSupabaseConfigured()) {
     const supabase = await createCookieSupabaseClient();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("posts")
       .update({
         status,
         published_at: status === "published" ? new Date().toISOString() : null
       })
-      .eq("id", id);
+      .eq("id", id)
+      .select("slug")
+      .single();
     if (error) redirectPostsError(error.message);
+    revalidatePostCache(data?.slug);
+  } else {
+    revalidatePostCache();
   }
 
   redirect("/admin/posts");
@@ -351,8 +375,11 @@ export async function updateProductStatusAction(formData: FormData) {
 
   if (isSupabaseConfigured()) {
     const supabase = await createCookieSupabaseClient();
-    const { error } = await supabase.from("products").update({ status }).eq("id", id);
+    const { data, error } = await supabase.from("products").update({ status }).eq("id", id).select("slug").single();
     if (error) redirectProductsError(error.message);
+    revalidateProductCache(data?.slug);
+  } else {
+    revalidateProductCache();
   }
 
   redirect("/admin/products");
@@ -430,6 +457,7 @@ export async function saveSettingsAction(formData: FormData) {
     if (error) throw new Error(error.message);
   }
 
+  revalidateSiteConfigCache();
   redirect("/admin/settings");
 }
 

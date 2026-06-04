@@ -1,8 +1,7 @@
 import { ReachUsSection } from "@/components/ReachUsSection";
 import { inshowAssets } from "@/lib/inshow-assets";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 export default function AboutPage() {
   return (

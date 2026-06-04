@@ -4,8 +4,7 @@ import { notFound } from "next/navigation";
 import { getPost } from "@/lib/data";
 import { getRuntimeSiteConfig } from "@/lib/site-config";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

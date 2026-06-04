@@ -1,5 +1,6 @@
 import { detectConnector, type MigrationEntity } from "@global-trade/migrator";
 import { createCookieSupabaseClient } from "@/lib/auth";
+import { revalidateFrontendCache } from "@/lib/cache-tags";
 import { importMigrationEntities } from "@/lib/migration-import";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { NextResponse } from "next/server";
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
   const supabase = await createCookieSupabaseClient();
   try {
     const result = await importMigrationEntities(supabase, entities);
+    revalidateFrontendCache();
 
     return NextResponse.json({
       message: "Import completed.",

@@ -1,15 +1,11 @@
 import Link from "next/link";
-import { listAdminPosts, listAdminProductCategories, listAdminProducts, listAdminUsers } from "@/lib/admin-data";
+import { getAdminDashboardStats } from "@/lib/admin-data";
 import { requireAdminSession } from "@/lib/auth";
 
 export default async function AdminHomePage() {
-  const [session, posts, products, categories, users] = await Promise.all([
-    requireAdminSession(),
-    listAdminPosts(),
-    listAdminProducts(),
-    listAdminProductCategories(),
-    listAdminUsers()
-  ]);
+  const session = await requireAdminSession();
+  const canViewUsers = ["owner", "admin"].includes(session.profile.role);
+  const stats = await getAdminDashboardStats(canViewUsers);
 
   return (
     <div>
@@ -26,24 +22,24 @@ export default async function AdminHomePage() {
       <div className="payload-grid">
         <Link className="payload-card" href="/admin/posts">
           <h2>Posts</h2>
-          <p>{posts.length} entries</p>
+          <p>{stats.posts} entries</p>
         </Link>
         <Link className="payload-card" href="/admin/products">
           <h2>Products</h2>
-          <p>{products.length} entries</p>
+          <p>{stats.products} entries</p>
         </Link>
         <Link className="payload-card" href="/admin/product-categories">
           <h2>Categories</h2>
-          <p>{categories.length} entries</p>
+          <p>{stats.productCategories} entries</p>
         </Link>
         <Link className="payload-card" href="/admin/migrations">
           <h2>Migrations</h2>
           <p>Preview and import WXR/CSV files.</p>
         </Link>
-        {["owner", "admin"].includes(session.profile.role) && (
+        {canViewUsers && (
           <Link className="payload-card" href="/admin/users">
             <h2>Users</h2>
-            <p>{users.length} accounts</p>
+            <p>{stats.users} accounts</p>
           </Link>
         )}
       </div>
