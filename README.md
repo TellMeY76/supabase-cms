@@ -2,6 +2,12 @@
 
 Reusable CMS and storefront template for foreign-trade showcase websites. It provides shared content types, Supabase schema, admin foundations, SEO utilities, inquiry APIs, and a WordPress/WooCommerce migration pipeline. Each client site is deployed independently to EdgeOne Pages with its own Supabase project.
 
+## Documentation
+
+- [Development Guide](docs/development-guide.md): complete onboarding guide for project structure, data model, frontend/admin development, Supabase setup, migration flow, and CNB + EdgeOne deployment.
+- [Demo Overview](docs/demo-overview.md): concise guide focused on Supabase connection and CNB + EdgeOne deployment.
+- [Media Storage and Internationalization Plan](docs/media-storage-and-i18n-plan.md): reserved Ali OSS and i18n integration plan.
+
 ## Packages
 
 - `packages/core`: public interfaces, content models, SEO helpers, and frontend data client.

@@ -16,6 +16,8 @@ export default async function AdminPostsPage({
   searchParams: Promise<{ error?: string; page?: string; success?: string }>;
 }) {
   const { error, page: pageParam, success } = await searchParams;
+  const returnTo = `/admin/posts${pageParam ? `?page=${encodeURIComponent(pageParam)}` : ""}`;
+  const editorQuery = `?returnTo=${encodeURIComponent(returnTo)}`;
   const [postsPage, categories] = await Promise.all([
     listAdminPostsPage({ page: pageParam, perPage }),
     listAdminPostCategories(),
@@ -42,7 +44,7 @@ export default async function AdminPostsPage({
         </div>
         <div className="payload-page-actions">
           <RefreshButton />
-          <Link className="payload-button" href="/admin/posts/new">
+          <Link className="payload-button" href={`/admin/posts/new${editorQuery}`}>
             New Post
           </Link>
         </div>
@@ -71,7 +73,7 @@ export default async function AdminPostsPage({
                 <tr key={post.id}>
                   <td className="payload-title-column">
                     <div className="payload-title-cell">
-                      <Link href={`/admin/posts/${post.id}`}>{post.title}</Link>
+                      <Link href={`/admin/posts/${post.id}${editorQuery}`}>{post.title}</Link>
                       <span>{post.slug}</span>
                     </div>
                   </td>
@@ -111,7 +113,7 @@ export default async function AdminPostsPage({
               <div className="payload-table-actions">
                 <Link
                   className="payload-button payload-button--small"
-                  href={`/admin/posts/${post.id}`}
+                  href={`/admin/posts/${post.id}${editorQuery}`}
                 >
                   Edit
                 </Link>

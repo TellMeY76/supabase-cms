@@ -1,21 +1,34 @@
 import { notFound } from "next/navigation";
 import { PostForm } from "@/components/admin/PostForm";
-import { getAdminPost, listAdminPostCategories } from "@/lib/admin-data";
+import { getAdminPost, listAdminPostCategories, listAdminPostTags } from "@/lib/admin-data";
+import { normalizePostsReturnTo, trustedEmbedHosts } from "@/lib/post-editor";
 
-export default async function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditPostPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
   const { id } = await params;
-  const [post, categories] = await Promise.all([getAdminPost(id), listAdminPostCategories()]);
+  const [{ returnTo }, post, categories, tags] = await Promise.all([
+    searchParams,
+    getAdminPost(id),
+    listAdminPostCategories(),
+    listAdminPostTags()
+  ]);
   if (!post) notFound();
 
   return (
-    <div>
-      <div className="payload-page-header">
-        <div>
-          <h1>Edit Post</h1>
-          <p>{post.title}</p>
-        </div>
-      </div>
-      <PostForm post={post} categories={categories} />
+    <div className="post-editor-page">
+      <PostForm
+        blockEditorEnabled={process.env.NEXT_PUBLIC_POST_BLOCK_EDITOR_ENABLED === "true"}
+        categories={categories}
+        post={post}
+        returnTo={normalizePostsReturnTo(returnTo)}
+        tags={tags}
+        trustedEmbedHosts={trustedEmbedHosts()}
+      />
     </div>
   );
 }

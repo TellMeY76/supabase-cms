@@ -1,18 +1,19 @@
 import { PostForm } from "@/components/admin/PostForm";
-import { listAdminPostCategories } from "@/lib/admin-data";
+import { listAdminPostCategories, listAdminPostTags } from "@/lib/admin-data";
+import { normalizePostsReturnTo, trustedEmbedHosts } from "@/lib/post-editor";
 
-export default async function NewPostPage() {
-  const categories = await listAdminPostCategories();
+export default async function NewPostPage({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) {
+  const [{ returnTo }, categories, tags] = await Promise.all([searchParams, listAdminPostCategories(), listAdminPostTags()]);
 
   return (
-    <div>
-      <div className="payload-page-header">
-        <div>
-          <h1>New Post</h1>
-          <p>Create a draft post, then publish it when ready.</p>
-        </div>
-      </div>
-      <PostForm categories={categories} />
+    <div className="post-editor-page">
+      <PostForm
+        blockEditorEnabled={process.env.NEXT_PUBLIC_POST_BLOCK_EDITOR_ENABLED === "true"}
+        categories={categories}
+        returnTo={normalizePostsReturnTo(returnTo)}
+        tags={tags}
+        trustedEmbedHosts={trustedEmbedHosts()}
+      />
     </div>
   );
 }

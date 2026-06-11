@@ -1,4 +1,4 @@
-import type { Inquiry, Post, PostCategory, Product, ProductCategory, UserRole } from "@global-trade/core";
+import type { Inquiry, Post, PostCategory, PostTag, Product, ProductCategory, UserRole } from "@global-trade/core";
 import { mockCategories, mockPostCategories, mockPosts, mockProducts } from "./mock-data";
 import { createCookieSupabaseClient } from "./auth";
 import { createServiceSupabaseClient, isSupabaseConfigured, isSupabaseServiceRoleConfigured } from "./supabase";
@@ -178,6 +178,19 @@ export async function listAdminPostCategories(): Promise<AdminPostCategory[]> {
   const { data, error } = await supabase.from("post_categories").select("*").order("title");
   if (error) return mockPostCategories.map(mapPostCategory);
   return data.map(mapPostCategory);
+}
+
+export async function listAdminPostTags(): Promise<PostTag[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createCookieSupabaseClient();
+  const { data, error } = await supabase.from("post_tags").select("id,slug,title,source").order("title");
+  if (error) return [];
+  return data.map((row) => ({
+    id: String(row.id),
+    slug: String(row.slug),
+    title: String(row.title),
+    source: row.source ?? undefined
+  }));
 }
 
 export async function getAdminPostCategory(id: string): Promise<AdminPostCategory | null> {

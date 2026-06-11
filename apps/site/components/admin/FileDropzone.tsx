@@ -1,7 +1,7 @@
 "use client";
 
 import { Upload, X, Image as ImageIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadFileAction } from "@/app/(admin)/admin/upload-action";
 
 interface FileDropzoneProps {
@@ -11,6 +11,7 @@ interface FileDropzoneProps {
   defaultValue?: string | undefined;
   defaultValues?: string[];
   label?: string;
+  onUrlsChange?: (urls: string[]) => void;
 }
 
 export function FileDropzone({
@@ -20,6 +21,7 @@ export function FileDropzone({
   defaultValue,
   defaultValues,
   label = "Upload file",
+  onUrlsChange,
 }: FileDropzoneProps) {
   const [urls, setUrls] = useState<string[]>(
     multiple
@@ -32,6 +34,10 @@ export function FileDropzone({
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    onUrlsChange?.(urls);
+  }, [onUrlsChange, urls]);
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {

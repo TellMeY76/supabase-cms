@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPost } from "@/lib/data";
 import { getRuntimeSiteConfig } from "@/lib/site-config";
+import { sanitizeRichTextHtml, trustedEmbedHosts } from "@/lib/post-editor";
 
 export const revalidate = 300;
 
@@ -24,6 +25,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) notFound();
+  const safeRichText = sanitizeRichTextHtml(post.richText, trustedEmbedHosts());
 
   return (
     <main>
@@ -39,7 +41,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           {post.featuredImage?.publicUrl && (
             <img className="mb-8 aspect-[16/9] w-full rounded-lg object-cover shadow-soft" src={post.featuredImage.publicUrl} alt={post.featuredImage.alt ?? post.title} />
           )}
-          <div className="rich-text" dangerouslySetInnerHTML={{ __html: post.richText }} />
+          <div className="rich-text" dangerouslySetInnerHTML={{ __html: safeRichText }} />
         </article>
       </section>
     </main>

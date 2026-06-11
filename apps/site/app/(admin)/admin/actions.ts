@@ -8,12 +8,26 @@ import {
   revalidateSiteConfigCache
 } from "@/lib/cache-tags";
 import { uploadAdminMedia } from "@/lib/media-storage";
+import {
+  containsUnsafePostHtml,
+  isMeaningfulRichText,
+  normalizePostsReturnTo,
+  postSaveMessage,
+  resolvePostStatus,
+  sanitizeEditedPostHtml,
+  sanitizePostEditorDocument,
+  shouldWritePostContent,
+  trustedEmbedHosts,
+  withAdminNotice,
+  type PostSaveIntent
+} from "@/lib/post-editor";
 import { createServiceSupabaseClient, isSupabaseConfigured, isSupabaseServiceRoleConfigured } from "@/lib/supabase";
 import { slugify, type LocaleConfig, type SiteConfig, type UserRole } from "@global-trade/core";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 const statusSchema = z.enum(["draft", "published", "archived"]);
+const postSaveIntentSchema = z.enum(["draft", "publish", "update", "archive", "restore"]);
 const inquiryStatusSchema = z.enum(["new", "contacted", "closed", "spam"]);
 const roleSchema = z.enum(["owner", "admin", "editor", "sales", "viewer"]);
 const userManagerRoles: UserRole[] = ["owner", "admin"];
@@ -30,14 +44,19 @@ const postSchema = z.object({
   featuredImageUrl: z.string().optional(),
   contentJson: z.string().min(1),
   contentHtml: z.string().optional(),
+  contentDirty: z.string().optional(),
   categoryIds: z.string().optional(),
+  tagIds: z.string().optional(),
+  newTagNames: z.string().optional(),
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
   seoCanonicalUrl: z.string().optional(),
   seoOgImageUrl: z.string().optional(),
   seoNoindex: z.string().optional(),
   status: statusSchema,
-  publishedAt: z.string().optional()
+  publishedAt: z.string().optional(),
+  intent: postSaveIntentSchema.optional(),
+  returnTo: z.string().optional()
 });
 
 const postCategorySchema = z.object({
@@ -144,21 +163,30 @@ const mediaUploadSchema = z.object({
 });
 
 export async function savePostAction(formData: FormData) {
-  await requireAdminSession();
-  const parsed = postSchema.parse(formEntries(formData));
+  await requireAdminRole(["owner", "admin", "editor"]);
+  const parsedResult = postSchema.safeParse(formEntries(formData));
+  const fallbackReturnTo = normalizePostsReturnTo(String(formData.get("returnTo") ?? ""));
+  if (!parsedResult.success) {
+    redirect(withAdminNotice(fallbackReturnTo, "error", parsedResult.error.issues[0]?.message ?? "Post could not be saved."));
+  }
+
+  const parsed = parsedResult.data;
+  const returnTo = normalizePostsReturnTo(parsed.returnTo);
+  const intent = (parsed.intent ?? (parsed.status === "draft" ? "draft" : "update")) as PostSaveIntent;
+  const status = resolvePostStatus(intent, parsed.status);
   const slug = parsed.slug ? slugify(parsed.slug) : slugify(parsed.title);
-  const content = JSON.parse(parsed.contentJson);
-  const richText = parsed.contentHtml ?? "";
+  const contentDirty = parsed.contentDirty === "true";
+  const writeContent = shouldWritePostContent({ contentDirty, isNewPost: !parsed.id });
   const categoryIds = formData.getAll("categoryIds").map(String).filter(Boolean);
-  const payload = {
+  const selectedTagIds = formData.getAll("tagIds").map(String).filter(Boolean);
+  const payload: Record<string, unknown> = {
     title: parsed.title,
     slug,
-    status: parsed.status,
+    status,
     author: emptyToNull(parsed.author),
     excerpt: emptyToNull(parsed.excerpt),
-    content_json: content,
-    rich_text: richText,
     category_ids: categoryIds,
+    tag_ids: selectedTagIds,
     featured_image: parsed.featuredImageUrl ? { publicUrl: parsed.featuredImageUrl } : null,
     seo: {
       title: emptyToUndefined(parsed.seoTitle),
@@ -166,21 +194,71 @@ export async function savePostAction(formData: FormData) {
       canonicalUrl: emptyToUndefined(parsed.seoCanonicalUrl),
       ogImageUrl: emptyToUndefined(parsed.seoOgImageUrl),
       noindex: parsed.seoNoindex === "on" ? true : undefined
-    },
-    published_at: parsed.status === "published" ? parsed.publishedAt || new Date().toISOString() : null
+    }
   };
 
   if (isSupabaseConfigured()) {
     const supabase = await createCookieSupabaseClient();
+    const existing = parsed.id
+      ? await supabase
+          .from("posts")
+          .select("slug,status,published_at,content_json,rich_text")
+          .eq("id", parsed.id)
+          .single()
+      : null;
+    if (existing?.error) {
+      redirect(withAdminNotice(returnTo, "error", existing.error.message));
+    }
+
+    const richText = writeContent ? parsed.contentHtml ?? "" : existing?.data?.rich_text ?? "";
+    if (status === "published" && !isMeaningfulRichText(richText)) {
+      redirect(withAdminNotice(returnTo, "error", "Published posts require article content."));
+    }
+
+    if (writeContent) {
+      const allowedIframeHosts = trustedEmbedHosts();
+      if (status === "published" && containsUnsafePostHtml(parsed.contentHtml ?? "", allowedIframeHosts)) {
+        redirect(withAdminNotice(returnTo, "error", "Remove unsafe scripts, inline events, URLs, or untrusted embeds before publishing."));
+      }
+      try {
+        payload.content_json = sanitizePostEditorDocument(JSON.parse(parsed.contentJson), allowedIframeHosts);
+      } catch {
+        redirect(withAdminNotice(returnTo, "error", "The article content is not valid editor data."));
+      }
+      payload.rich_text = sanitizeEditedPostHtml(richText, allowedIframeHosts);
+    }
+
+    try {
+      payload.tag_ids = await resolvePostTagIds(supabase, selectedTagIds, parsed.newTagNames);
+    } catch (error) {
+      redirect(
+        withAdminNotice(
+          returnTo,
+          "error",
+          error instanceof Error ? error.message : "Post tags could not be saved."
+        )
+      );
+    }
+    payload.modified_at = new Date().toISOString();
+    payload.published_at =
+      status === "published"
+        ? existing?.data?.status === "published"
+          ? existing.data.published_at
+          : parsed.publishedAt || new Date().toISOString()
+        : null;
+
     const query = parsed.id
       ? supabase.from("posts").update(payload).eq("id", parsed.id).select("id").single()
       : supabase.from("posts").insert(payload).select("id").single();
     const { error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) redirect(withAdminNotice(returnTo, "error", error.message));
+    if (existing?.data?.slug && existing.data.slug !== slug) revalidatePostCache(existing.data.slug);
+  } else if (status === "published" && !isMeaningfulRichText(parsed.contentHtml ?? "")) {
+    redirect(withAdminNotice(returnTo, "error", "Published posts require article content."));
   }
 
   revalidatePostCache(slug);
-  redirect("/admin/posts");
+  redirect(withAdminNotice(returnTo, "success", postSaveMessage(intent, status)));
 }
 
 export async function saveProductAction(formData: FormData) {
@@ -608,6 +686,31 @@ function splitLines(value?: string) {
     .split(/\r?\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+async function resolvePostTagIds(
+  supabase: Awaited<ReturnType<typeof createCookieSupabaseClient>>,
+  selectedIds: string[],
+  newTagNamesJson?: string
+) {
+  let newTagNames: string[] = [];
+  try {
+    const parsed = JSON.parse(newTagNamesJson || "[]");
+    if (Array.isArray(parsed)) {
+      newTagNames = parsed.map(String).map((name) => name.trim()).filter(Boolean);
+    }
+  } catch {
+    newTagNames = [];
+  }
+
+  const uniqueRows = Array.from(new Map(newTagNames.map((title) => [slugify(title), { slug: slugify(title), title }])).values()).filter(
+    (row) => row.slug
+  );
+  if (uniqueRows.length === 0) return Array.from(new Set(selectedIds));
+
+  const { data, error } = await supabase.from("post_tags").upsert(uniqueRows, { onConflict: "slug" }).select("id");
+  if (error) throw new Error(error.message);
+  return Array.from(new Set([...selectedIds, ...(data ?? []).map((row) => String(row.id))]));
 }
 
 function parseLocaleList(value: string | undefined, defaultLocale: string): LocaleConfig[] {
