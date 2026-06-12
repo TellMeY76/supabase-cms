@@ -1,6 +1,233 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config "../tailwind.config.ts";
+@source "../node_modules/@blocknote/shadcn/src";
+@import "tailwindcss";
+
+@layer components {
+  .post-editor-loading {
+    min-height: 360px;
+    display: grid;
+    place-items: center;
+    color: #667085;
+    border: 1px solid #e4e7ec;
+    background: #fff;
+  }
+
+  .post-blocknote {
+    border: 1px solid #dfe3e8;
+    background: #fff;
+  }
+
+  .post-blocknote-toolbar {
+    position: sticky;
+    top: 64px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 46px;
+    padding: 6px 8px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #e4e7ec;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(10px);
+  }
+
+  .post-editor-form--blocks .post-blocknote-toolbar,
+  .post-editor-form--preview .post-blocknote-toolbar {
+    top: 0;
+  }
+
+  .post-blocknote-toolbar button,
+  .post-blocknote-toolbar select,
+  .post-blocknote-toolbar input[type="color"] {
+    flex: 0 0 auto;
+    height: 32px;
+    min-height: 32px;
+    box-sizing: border-box;
+    border: 1px solid #d0d5dd;
+    border-radius: 5px;
+    background: #fff;
+    color: #182230;
+  }
+
+  .post-blocknote-toolbar button {
+    min-width: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    line-height: 1;
+  }
+
+  .post-blocknote-toolbar button:hover,
+  .post-blocknote-toolbar select:hover {
+    border-color: #ff7a00;
+    color: #e66200;
+  }
+
+  .post-blocknote .post-blocknote-toolbar select {
+    width: auto;
+    max-width: 150px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0 28px 0 8px;
+  }
+  .post-blocknote-toolbar select[aria-label="Block type"] { width: 138px; }
+  .post-blocknote-toolbar select[aria-label="Font"] { width: 116px; }
+  .post-blocknote-toolbar select[aria-label="Font size"] { width: 82px; }
+  .post-blocknote-toolbar input[type="color"] { width: 34px; padding: 3px; }
+  .post-blocknote-toolbar__html { font-size: 12px; font-weight: 700; }
+  .post-blocknote-toolbar__stats {
+    margin-left: auto;
+    padding: 0 6px;
+    color: #667085;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .post-blocknote-table-control { position: relative; display: inline-flex; }
+  .post-blocknote-table-control__panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 40;
+    display: grid;
+    width: 220px;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(16, 24, 40, 0.16);
+  }
+  .post-blocknote-table-control__panel strong { color: #101828; font-size: 13px; }
+  .post-blocknote-table-control__panel label { display: grid; grid-template-columns: 1fr 72px; align-items: center; gap: 8px; color: #344054; font-size: 12px; }
+  .post-blocknote-table-control__panel input[type="number"] { width: 72px; height: 32px; border: 1px solid #d0d5dd; border-radius: 4px; padding: 0 8px; }
+  .post-blocknote-table-control__panel .post-blocknote-table-control__check { grid-template-columns: 18px 1fr; }
+  .post-blocknote-table-control__panel .post-blocknote-table-control__check input { width: 16px; height: 16px; }
+  .post-blocknote-table-control__panel .post-blocknote-table-control__insert { width: 100%; border-color: #101828; background: #101828; color: #fff; }
+
+  .post-blocknote .bn-container,
+  .post-blocknote .bn-editor {
+    min-height: 480px;
+    background: transparent;
+  }
+
+  .post-blocknote .bn-editor {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 42px 48px 90px;
+  }
+
+  .post-blocknote--blocks .bn-editor { max-width: 960px; }
+
+  .bn-shadcn .bn-menu-dropdown,
+  .bn-shadcn .bn-toolbar,
+  .bn-shadcn [role="listbox"] {
+    border: 1px solid #e4e7ec;
+    background: #fff;
+    color: #182230;
+    box-shadow: 0 12px 30px rgba(16, 24, 40, 0.16);
+  }
+
+  .bn-shadcn .bn-toolbar button {
+    min-height: 36px;
+  }
+
+  .post-blocknote .bn-block-content[data-article-margin-top="4"] { margin-top: 4px; }
+  .post-blocknote .bn-block-content[data-article-margin-top="8"] { margin-top: 8px; }
+  .post-blocknote .bn-block-content[data-article-margin-top="12"] { margin-top: 12px; }
+  .post-blocknote .bn-block-content[data-article-margin-top="16"] { margin-top: 16px; }
+  .post-blocknote .bn-block-content[data-article-margin-top="24"] { margin-top: 24px; }
+  .post-blocknote .bn-block-content[data-article-margin-top="32"] { margin-top: 32px; }
+  .post-blocknote .bn-block-content[data-article-margin-top="48"] { margin-top: 48px; }
+  .post-blocknote .bn-block-content[data-article-margin-top="64"] { margin-top: 64px; }
+  .post-blocknote .bn-block-content[data-article-margin-bottom="4"] { margin-bottom: 4px; }
+  .post-blocknote .bn-block-content[data-article-margin-bottom="8"] { margin-bottom: 8px; }
+  .post-blocknote .bn-block-content[data-article-margin-bottom="12"] { margin-bottom: 12px; }
+  .post-blocknote .bn-block-content[data-article-margin-bottom="16"] { margin-bottom: 16px; }
+  .post-blocknote .bn-block-content[data-article-margin-bottom="24"] { margin-bottom: 24px; }
+  .post-blocknote .bn-block-content[data-article-margin-bottom="32"] { margin-bottom: 32px; }
+  .post-blocknote .bn-block-content[data-article-margin-bottom="48"] { margin-bottom: 48px; }
+  .post-blocknote .bn-block-content[data-article-margin-bottom="64"] { margin-bottom: 64px; }
+  .post-blocknote .bn-block-content[data-article-padding="4"] { padding: 4px; }
+  .post-blocknote .bn-block-content[data-article-padding="8"] { padding: 8px; }
+  .post-blocknote .bn-block-content[data-article-padding="12"] { padding: 12px; }
+  .post-blocknote .bn-block-content[data-article-padding="16"] { padding: 16px; }
+  .post-blocknote .bn-block-content[data-article-padding="24"] { padding: 24px; }
+  .post-blocknote .bn-block-content[data-article-padding="32"] { padding: 32px; }
+  .post-blocknote .bn-block-content[data-article-padding="48"] { padding: 48px; }
+  .post-blocknote .bn-block-content[data-article-padding="64"] { padding: 64px; }
+
+  .post-blocknote__error {
+    padding: 10px 14px;
+    border-bottom: 1px solid #fecdca;
+    color: #b42318;
+    background: #fef3f2;
+    font-size: 13px;
+  }
+
+  .post-blocknote__preview {
+    display: block;
+    width: 100%;
+    min-height: 760px;
+    border: 0;
+    background: #fff;
+  }
+
+  .post-blocknote-gallery,
+  .post-blocknote-html {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid #dfe3e8;
+    border-radius: 6px;
+    background: #f9fafb;
+  }
+
+  .post-blocknote-gallery__grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .post-blocknote-gallery__grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .post-blocknote-gallery__grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .post-blocknote-gallery__grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .post-blocknote-gallery figure { min-width: 0; margin: 0; padding: 8px; background: #fff; border: 1px solid #e4e7ec; }
+  .post-blocknote-gallery img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+  .post-blocknote-gallery input,
+  .post-blocknote-gallery select { width: 100%; min-height: 32px; margin-top: 6px; border: 1px solid #d0d5dd; padding: 4px 8px; background: #fff; }
+  .post-blocknote-gallery figure div { display: flex; gap: 4px; margin-top: 6px; }
+  .post-blocknote-gallery button { min-height: 30px; border: 1px solid #d0d5dd; padding: 0 8px; background: #fff; }
+  .post-blocknote-gallery__replace-file { display: inline-flex; min-height: 30px; cursor: pointer; align-items: center; border: 1px solid #d0d5dd; padding: 0 8px; background: #fff; font-size: 13px; }
+  .post-blocknote-gallery__controls { display: grid; grid-template-columns: minmax(200px, 1fr) auto 120px; gap: 8px; margin-top: 12px; }
+  .post-blocknote-gallery__error { margin-bottom: 8px; color: #b42318; font-size: 13px; }
+
+  .post-blocknote-html__bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .post-blocknote-html__bar button { min-height: 32px; border: 1px solid #d0d5dd; padding: 0 10px; background: #fff; }
+  .post-blocknote-html textarea { width: 100%; min-height: 240px; resize: vertical; border: 1px solid #98a2b3; padding: 12px; background: #101828; color: #f2f4f7; font-family: ui-monospace, monospace; }
+  .post-blocknote-html iframe { width: 100%; min-height: 260px; border: 1px solid #e4e7ec; background: #fff; }
+
+  .post-blocknote-inspector { display: grid; gap: 14px; }
+  .post-blocknote-inspector__heading { display: grid; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid #e4e7ec; }
+  .post-blocknote-inspector__heading span { color: #667085; font-size: 12px; }
+  .post-blocknote-inspector__heading strong { color: #101828; font-size: 15px; }
+  .post-blocknote-inspector label { display: grid; gap: 6px; color: #344054; font-size: 12px; font-weight: 650; }
+  .post-blocknote-inspector input,
+  .post-blocknote-inspector select { min-height: 36px; width: 100%; border: 1px solid #d0d5dd; border-radius: 5px; padding: 0 9px; background: #fff; color: #101828; font-weight: 400; }
+  .post-blocknote-inspector__color { display: grid; grid-template-columns: 44px 1fr; gap: 8px; }
+  .post-blocknote-inspector__color input { padding: 3px; }
+  .post-blocknote-inspector__color button { min-height: 36px; border: 1px solid #d0d5dd; border-radius: 5px; background: #fff; }
+  .post-blocknote-inspector__check { display: flex !important; align-items: center; gap: 8px !important; }
+  .post-blocknote-inspector__check input { width: 16px; min-height: 16px; }
+
+  @media (max-width: 760px) {
+    .post-blocknote .bn-editor { padding: 28px 18px 64px; }
+    .post-blocknote-gallery__grid--3,
+    .post-blocknote-gallery__grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .post-blocknote-gallery__controls { grid-template-columns: 1fr; }
+    .post-blocknote-image__settings { grid-template-columns: 1fr; }
+  }
+}
 
 @layer base {
   :root {
@@ -12,6 +239,8 @@
     --foreground: 207 75% 14%;
     --card: 0 0% 100%;
     --card-foreground: 207 75% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 207 75% 14%;
     --primary: 27 100% 52%;
     --primary-foreground: 0 0% 100%;
     --secondary: 205 69% 16%;
@@ -335,6 +564,79 @@
 
   .rich-text .article-gallery img {
     @apply m-0 aspect-square h-full w-full object-cover;
+  }
+
+  .rich-text .article-table-scroll {
+    @apply my-6 max-w-full overflow-x-auto;
+  }
+
+  .rich-text .article-table-scroll table {
+    @apply my-0 table w-full;
+  }
+
+  .rich-text .article-code {
+    @apply my-6 max-w-full overflow-x-auto rounded-md bg-[#111827] p-4 font-mono text-sm leading-6 text-zinc-100;
+  }
+
+  .rich-text .article-custom-html {
+    @apply my-6 max-w-full overflow-x-auto;
+  }
+
+  .rich-text .article-align-left { text-align: left; }
+  .rich-text .article-align-center { text-align: center; }
+  .rich-text .article-align-right { text-align: right; }
+  .rich-text .article-align-justify { text-align: justify; }
+  .rich-text .article-font-sans { font-family: var(--font-sans); }
+  .rich-text .article-font-serif { font-family: Georgia, "Times New Roman", serif; }
+  .rich-text .article-font-mono { font-family: var(--font-mono); }
+  .rich-text .article-size-12 { font-size: 12px; }
+  .rich-text .article-size-14 { font-size: 14px; }
+  .rich-text .article-size-16 { font-size: 16px; }
+  .rich-text .article-size-18 { font-size: 18px; }
+  .rich-text .article-size-20 { font-size: 20px; }
+  .rich-text .article-size-24 { font-size: 24px; }
+  .rich-text .article-size-28 { font-size: 28px; }
+  .rich-text .article-size-32 { font-size: 32px; }
+  .rich-text .article-size-40 { font-size: 40px; }
+  .rich-text .article-size-48 { font-size: 48px; }
+  .rich-text .article-space-top-4 { margin-top: 4px; }
+  .rich-text .article-space-top-8 { margin-top: 8px; }
+  .rich-text .article-space-top-12 { margin-top: 12px; }
+  .rich-text .article-space-top-16 { margin-top: 16px; }
+  .rich-text .article-space-top-24 { margin-top: 24px; }
+  .rich-text .article-space-top-32 { margin-top: 32px; }
+  .rich-text .article-space-top-48 { margin-top: 48px; }
+  .rich-text .article-space-top-64 { margin-top: 64px; }
+  .rich-text .article-space-bottom-4 { margin-bottom: 4px; }
+  .rich-text .article-space-bottom-8 { margin-bottom: 8px; }
+  .rich-text .article-space-bottom-12 { margin-bottom: 12px; }
+  .rich-text .article-space-bottom-16 { margin-bottom: 16px; }
+  .rich-text .article-space-bottom-24 { margin-bottom: 24px; }
+  .rich-text .article-space-bottom-32 { margin-bottom: 32px; }
+  .rich-text .article-space-bottom-48 { margin-bottom: 48px; }
+  .rich-text .article-space-bottom-64 { margin-bottom: 64px; }
+  .rich-text .article-padding-4 { padding: 4px; }
+  .rich-text .article-padding-8 { padding: 8px; }
+  .rich-text .article-padding-12 { padding: 12px; }
+  .rich-text .article-padding-16 { padding: 16px; }
+  .rich-text .article-padding-24 { padding: 24px; }
+  .rich-text .article-padding-32 { padding: 32px; }
+  .rich-text .article-padding-48 { padding: 48px; }
+  .rich-text .article-padding-64 { padding: 64px; }
+  .rich-text [style*="--article-background-color"] { background-color: var(--article-background-color); }
+  .rich-text [style*="--article-text-color"] { color: var(--article-text-color); }
+  .rich-text [style*="--article-highlight-color"] { background-color: var(--article-highlight-color); }
+  .rich-text .article-image-width-25 { width: 25%; }
+  .rich-text .article-image-width-50 { width: 50%; }
+  .rich-text .article-image-width-75 { width: 75%; }
+  .rich-text .article-image-width-100 { width: 100%; }
+
+  @media (max-width: 640px) {
+    .rich-text .article-image-width-25,
+    .rich-text .article-image-width-50,
+    .rich-text .article-image-width-75 {
+      width: 100%;
+    }
   }
 
   .form,
@@ -1691,22 +1993,22 @@
 
   .post-editor-form--blocks,
   .post-editor-form--preview {
-    @apply fixed inset-0 z-[80] block overflow-hidden bg-[#f3f4f2];
+    @apply fixed inset-0 z-[80] block overflow-y-auto bg-[#f3f4f2];
   }
 
   .post-editor-form--blocks .post-editor-topbar,
   .post-editor-form--preview .post-editor-topbar {
-    @apply relative z-30 min-h-[68px] rounded-none border-x-0 border-t-0 px-5;
+    @apply sticky top-0 z-30 min-h-[68px] rounded-none border-x-0 border-t-0 px-5;
   }
 
   .post-editor-form--blocks .post-editor-layout,
   .post-editor-form--preview .post-editor-layout {
-    @apply grid h-[calc(100vh-68px)] grid-cols-[minmax(0,1fr)_340px] gap-0;
+    @apply grid min-h-[calc(100vh-68px)] grid-cols-[minmax(0,1fr)_340px] items-start gap-0;
   }
 
   .post-editor-form--blocks .post-editor-main,
   .post-editor-form--preview .post-editor-main {
-    @apply block overflow-y-auto px-5 py-8;
+    @apply block min-h-0 overflow-visible px-5 py-8;
   }
 
   .post-editor-form--blocks .post-editor-content-section,
@@ -1714,9 +2016,12 @@
     @apply mx-auto w-full max-w-[860px] gap-4 border-0 bg-transparent p-0 shadow-none;
   }
 
-  .post-editor-form--blocks .post-editor-title-field input,
-  .post-editor-form--preview .post-editor-title-field input {
-    @apply border-0 bg-transparent px-0 text-4xl font-black leading-tight shadow-none ring-0 focus:border-0 focus:ring-0;
+  .post-editor-form--blocks .post-editor-title-field textarea,
+  .post-editor-form--preview .post-editor-title-field textarea {
+    field-sizing: content;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    @apply min-h-12 w-full resize-none overflow-hidden border-0 bg-transparent px-0 text-4xl font-black leading-tight shadow-none ring-0 focus:border-0 focus:ring-0;
   }
 
   .post-editor-form--blocks .post-editor-excerpt-field textarea,
@@ -1735,7 +2040,7 @@
 
   .post-editor-form--blocks .post-editor-sidebar,
   .post-editor-form--preview .post-editor-sidebar {
-    @apply static block overflow-y-auto border-l border-zinc-200 bg-white p-4;
+    @apply sticky top-[68px] block max-h-[calc(100vh-68px)] overflow-y-auto border-l border-zinc-200 bg-white p-4;
   }
 
   .post-editor-form--blocks .post-editor-sidebar .payload-form-section,
@@ -3079,7 +3384,7 @@
     background: var(--theme-color);
   }
 
-  .site-footer .container {
+  .site-footer .footer-container {
     width: 100%;
     max-width: none;
     padding: 24px 20px 18px;

@@ -6,7 +6,7 @@ export function Footer() {
   return (
     <footer id="colophon" className="site-footer">
       <div className="before-container" />
-      <div className="container">
+      <div className="footer-container">
         <div className="footer-columns">
           <div className="footer-column">
             <div className="footer-widget footer-info-widget">

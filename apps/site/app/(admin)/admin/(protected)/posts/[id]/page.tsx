@@ -24,6 +24,7 @@ export default async function EditPostPage({
       <PostForm
         blockEditorEnabled={process.env.NEXT_PUBLIC_POST_BLOCK_EDITOR_ENABLED === "true"}
         categories={categories}
+        editorEngine={process.env.POST_EDITOR_ENGINE === "blocknote" ? "blocknote" : "lexical"}
         post={post}
         returnTo={normalizePostsReturnTo(returnTo)}
         tags={tags}

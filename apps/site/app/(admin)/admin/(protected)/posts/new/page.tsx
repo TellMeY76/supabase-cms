@@ -10,6 +10,7 @@ export default async function NewPostPage({ searchParams }: { searchParams: Prom
       <PostForm
         blockEditorEnabled={process.env.NEXT_PUBLIC_POST_BLOCK_EDITOR_ENABLED === "true"}
         categories={categories}
+        editorEngine={process.env.POST_EDITOR_ENGINE === "blocknote" ? "blocknote" : "lexical"}
         returnTo={normalizePostsReturnTo(returnTo)}
         tags={tags}
         trustedEmbedHosts={trustedEmbedHosts()}

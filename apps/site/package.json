@@ -12,6 +12,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@blocknote/core": "0.51.4",
+    "@blocknote/react": "0.51.4",
+    "@blocknote/shadcn": "0.51.4",
     "@global-trade/core": "workspace:*",
     "@global-trade/migrator": "workspace:*",
     "@lexical/history": "^0.44.0",
@@ -47,11 +50,12 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "4.1.12",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.15",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^4.1.12",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

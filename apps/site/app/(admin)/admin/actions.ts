@@ -9,6 +9,11 @@ import {
 } from "@/lib/cache-tags";
 import { uploadAdminMedia } from "@/lib/media-storage";
 import {
+  parseBlockNoteDocument,
+  serializeBlockNoteDocumentToHtml,
+  validateBlockNoteDocument
+} from "@/lib/post-blocknote";
+import {
   containsUnsafePostHtml,
   isMeaningfulRichText,
   normalizePostsReturnTo,
@@ -210,22 +215,41 @@ export async function savePostAction(formData: FormData) {
       redirect(withAdminNotice(returnTo, "error", existing.error.message));
     }
 
-    const richText = writeContent ? parsed.contentHtml ?? "" : existing?.data?.rich_text ?? "";
+    let richText = writeContent ? parsed.contentHtml ?? "" : existing?.data?.rich_text ?? "";
+    let parsedEditorContent: unknown = null;
+    if (writeContent) {
+      try {
+        parsedEditorContent = JSON.parse(parsed.contentJson);
+        const blockNoteDocument = parseBlockNoteDocument(parsedEditorContent);
+        if (blockNoteDocument) {
+          const validation = validateBlockNoteDocument(blockNoteDocument);
+          if (!validation.valid) throw new Error(validation.errors[0]?.message ?? "The article content is invalid.");
+          richText = serializeBlockNoteDocumentToHtml(blockNoteDocument, trustedEmbedHosts());
+        }
+      } catch (error) {
+        redirect(
+          withAdminNotice(
+            returnTo,
+            "error",
+            error instanceof Error ? error.message : "The article content is not valid editor data."
+          )
+        );
+      }
+    }
     if (status === "published" && !isMeaningfulRichText(richText)) {
       redirect(withAdminNotice(returnTo, "error", "Published posts require article content."));
     }
 
     if (writeContent) {
       const allowedIframeHosts = trustedEmbedHosts();
-      if (status === "published" && containsUnsafePostHtml(parsed.contentHtml ?? "", allowedIframeHosts)) {
+      const blockNoteDocument = parseBlockNoteDocument(parsedEditorContent);
+      if (!blockNoteDocument && status === "published" && containsUnsafePostHtml(parsed.contentHtml ?? "", allowedIframeHosts)) {
         redirect(withAdminNotice(returnTo, "error", "Remove unsafe scripts, inline events, URLs, or untrusted embeds before publishing."));
       }
-      try {
-        payload.content_json = sanitizePostEditorDocument(JSON.parse(parsed.contentJson), allowedIframeHosts);
-      } catch {
-        redirect(withAdminNotice(returnTo, "error", "The article content is not valid editor data."));
-      }
-      payload.rich_text = sanitizeEditedPostHtml(richText, allowedIframeHosts);
+      payload.content_json = blockNoteDocument
+        ? blockNoteDocument
+        : sanitizePostEditorDocument(parsedEditorContent, allowedIframeHosts);
+      payload.rich_text = blockNoteDocument ? richText : sanitizeEditedPostHtml(richText, allowedIframeHosts);
     }
 
     try {

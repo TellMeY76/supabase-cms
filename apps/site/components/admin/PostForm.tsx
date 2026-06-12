@@ -2,6 +2,7 @@
 
 import type { Post, PostCategory, PostTag, PublishStatus } from "@global-trade/core";
 import { ArrowLeft, Eye, FileText, LayoutTemplate, Save } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { savePostAction } from "@/app/(admin)/admin/actions";
@@ -12,7 +13,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CategoryTreeSelect } from "./CategoryTreeSelect";
 import { FileDropzone } from "./FileDropzone";
 import { PostTagSelect } from "./PostTagSelect";
-import { RichTextEditor, type RichTextEditorMode } from "./RichTextEditor";
+import type { RichTextEditorMode } from "./RichTextEditor";
+
+const BlockNotePostEditor = dynamic(
+  () => import("./PostBlockNoteEditor").then((module) => module.PostBlockNoteEditor),
+  { ssr: false, loading: () => <EditorLoading /> }
+);
+
+const LexicalPostEditor = dynamic(
+  () => import("./RichTextEditor").then((module) => module.RichTextEditor),
+  { ssr: false, loading: () => <EditorLoading /> }
+);
 
 type AdminPost = Partial<Post> & { contentJson?: unknown };
 
@@ -21,6 +32,7 @@ interface PostFormProps {
   categories?: PostCategory[];
   tags?: PostTag[];
   blockEditorEnabled?: boolean;
+  editorEngine?: "blocknote" | "lexical";
   returnTo?: string;
   trustedEmbedHosts?: string[];
 }
@@ -30,10 +42,12 @@ export function PostForm({
   categories = [],
   tags = [],
   blockEditorEnabled = false,
+  editorEngine = "lexical",
   returnTo = "/admin/posts",
   trustedEmbedHosts = []
 }: PostFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<RichTextEditorMode>("form");
   const [bodyDirty, setBodyDirty] = useState(false);
   const [formDirty, setFormDirty] = useState(false);
@@ -46,7 +60,7 @@ export function PostForm({
   const initialJson = useMemo(() => post?.contentJson ?? emptyRichTextDocument, [post?.contentJson]);
   const initialHtml = post?.richText ?? "";
   const status = post?.status ?? "draft";
-  const isLegacyHtml = isLegacyPostContent(initialJson, initialHtml);
+  const isLegacyHtml = Boolean(post?.id) && isLegacyPostContent(initialJson, initialHtml);
   const isDirty = bodyDirty || formDirty;
   const handleFeaturedImageChange = useCallback((urls: string[]) => {
     const nextUrl = urls[0] ?? "";
@@ -56,6 +70,13 @@ export function PostForm({
 
   useUnsavedPostWarning(isDirty);
   usePostEditorShortcuts({ formRef, mode, setMode, status });
+
+  useEffect(() => {
+    const textarea = titleRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [mode, title]);
 
   function enterBlockEditor() {
     if (isLegacyHtml && !legacyWarningSeen) {
@@ -79,7 +100,12 @@ export function PostForm({
         onInput={(event) => {
           if (!(event.target instanceof HTMLInputElement && event.target.type === "hidden")) setFormDirty(true);
         }}
-        onSubmit={() => {
+        onSubmit={(event) => {
+          const submitter = (event.nativeEvent as SubmitEvent).submitter;
+          if (!(submitter instanceof HTMLButtonElement) || submitter.name !== "intent") {
+            event.preventDefault();
+            return;
+          }
           setBodyDirty(false);
           setFormDirty(false);
         }}
@@ -92,32 +118,32 @@ export function PostForm({
 
         <div className="post-editor-topbar">
           <div className="post-editor-topbar__start">
-            {mode === "form" ? (
-              <Link className="post-editor-icon-link" href={returnTo} title="Back to Posts">
-                <ArrowLeft size={18} />
-              </Link>
-            ) : (
-              <button className="post-editor-icon-link" onClick={() => setMode("form")} title="Return to form editor" type="button">
-                <ArrowLeft size={18} />
-              </button>
-            )}
+            <Link className="post-editor-icon-link" href={returnTo} title="Back to Posts">
+              <ArrowLeft size={18} />
+            </Link>
             <div>
               <strong>{post?.id ? "Edit post" : "New post"}</strong>
               <span>{formatStatus(status)}</span>
             </div>
           </div>
           <div className="post-editor-topbar__actions">
-            {blockEditorEnabled && mode === "form" && (
+            {(editorEngine === "blocknote" || blockEditorEnabled) && mode === "form" && (
               <Button className="post-editor-block-trigger" onClick={enterBlockEditor} type="button" variant="outline">
                 <LayoutTemplate size={16} />
                 Block editor
               </Button>
             )}
             {mode !== "form" && (
-              <Button onClick={() => setMode(mode === "preview" ? "blocks" : "preview")} type="button" variant="outline">
-                {mode === "preview" ? <FileText size={16} /> : <Eye size={16} />}
-                {mode === "preview" ? "Edit" : "Preview"}
-              </Button>
+              <>
+                <Button onClick={() => setMode("form")} type="button" variant="outline">
+                  <FileText size={16} />
+                  Form editor
+                </Button>
+                <Button onClick={() => setMode(mode === "preview" ? "blocks" : "preview")} type="button" variant="outline">
+                  {mode === "preview" ? <LayoutTemplate size={16} /> : <Eye size={16} />}
+                  {mode === "preview" ? "Edit" : "Preview"}
+                </Button>
+              </>
             )}
             <PostSaveButtons status={status} />
           </div>
@@ -128,14 +154,25 @@ export function PostForm({
             <section className="payload-form-section post-editor-content-section">
               <div className="payload-field post-editor-title-field">
                 <label htmlFor="title">Title</label>
-                <input id="title" name="title" onChange={(event) => setTitle(event.target.value)} required value={title} />
+                <textarea
+                  id="title"
+                  name="title"
+                  onChange={(event) => setTitle(event.target.value.replace(/[\r\n]+/g, " "))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.preventDefault();
+                  }}
+                  required
+                  ref={titleRef}
+                  rows={1}
+                  value={title}
+                />
               </div>
               <div className="payload-field post-editor-excerpt-field">
                 <label htmlFor="excerpt">Excerpt</label>
                 <textarea id="excerpt" name="excerpt" onChange={(event) => setExcerpt(event.target.value)} rows={3} value={excerpt} />
               </div>
 
-              {mode === "preview" && (
+              {editorEngine !== "blocknote" && mode === "preview" && (
                 <header className="post-editor-preview-header">
                   <p>Article preview</p>
                   <h1>{title || "Untitled post"}</h1>
@@ -146,15 +183,29 @@ export function PostForm({
 
               <div className="payload-field post-editor-body-field">
                 <label>Article content</label>
-                <RichTextEditor
-                  cleanPaste
-                  initialContent={initialJson}
-                  initialHtml={initialHtml}
-                  mode={mode}
-                  name="contentJson"
-                  onDirtyChange={setBodyDirty}
-                  trustedEmbedHosts={trustedEmbedHosts}
-                />
+                {editorEngine === "blocknote" ? (
+                  <BlockNotePostEditor
+                    initialContent={initialJson}
+                    initialHtml={initialHtml}
+                    mode={mode}
+                    name="contentJson"
+                    onDirtyChange={setBodyDirty}
+                    previewExcerpt={excerpt}
+                    previewFeaturedImage={featuredImage}
+                    previewTitle={title}
+                    trustedEmbedHosts={trustedEmbedHosts}
+                  />
+                ) : (
+                  <LexicalPostEditor
+                    cleanPaste
+                    initialContent={initialJson}
+                    initialHtml={initialHtml}
+                    mode={mode}
+                    name="contentJson"
+                    onDirtyChange={setBodyDirty}
+                    trustedEmbedHosts={trustedEmbedHosts}
+                  />
+                )}
               </div>
             </section>
           </main>
@@ -229,11 +280,9 @@ export function PostForm({
               </label>
             </section>
               </TabsContent>
-              <TabsContent value="block">
+              <TabsContent className="data-[state=inactive]:hidden" forceMount value="block">
                 <section className="payload-form-section post-editor-block-inspector">
-                  <div id="post-block-inspector">
-                    <p className="payload-help-text">Select an image, gallery, table, code, or custom HTML block to edit its content settings.</p>
-                  </div>
+                  <div id="post-block-inspector" />
                 </section>
               </TabsContent>
             </Tabs>
@@ -284,6 +333,10 @@ function PostSaveButtons({ status }: { status: PublishStatus }) {
       <Button name="intent" type="submit" value="publish">Publish</Button>
     </>
   );
+}
+
+function EditorLoading() {
+  return <div className="post-editor-loading">Loading article editor...</div>;
 }
 
 function useUnsavedPostWarning(isDirty: boolean) {
