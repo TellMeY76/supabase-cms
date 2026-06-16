@@ -36,7 +36,12 @@ interface WooCommerceSyncResult {
     media?: number;
   };
   skipped?: {
+    categories?: number;
     products?: number;
+  };
+  urlReplacement?: {
+    from: string;
+    to: string;
   };
   warnings?: string[];
 }
@@ -46,6 +51,8 @@ export default function MigrationWizardPage() {
   const [replacementSiteUrl, setReplacementSiteUrl] = useState("");
   const [wooSiteUrl, setWooSiteUrl] = useState("https://inshowhome.com");
   const [wooApiKey, setWooApiKey] = useState("");
+  const [wooSourceSiteUrl, setWooSourceSiteUrl] = useState("");
+  const [wooReplacementSiteUrl, setWooReplacementSiteUrl] = useState("");
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [preview, setPreview] = useState<MigrationPreview | null>(null);
   const [importResult, setImportResult] = useState<MigrationImportResult | null>(null);
@@ -124,7 +131,9 @@ export default function MigrationWizardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         siteUrl: wooSiteUrl,
-        apiKey: wooApiKey
+        apiKey: wooApiKey,
+        sourceSiteUrl: wooSourceSiteUrl,
+        replacementSiteUrl: wooReplacementSiteUrl
       })
     });
     const payload = await response.json();
@@ -158,7 +167,7 @@ export default function MigrationWizardPage() {
               </DialogHeader>
               <form className="woo-sync-form" onSubmit={onWooSync}>
                 <p>
-                  Fill in the old WooCommerce site. This only updates missing product/category data and keeps media as remote URLs.
+                  Fill in the old WooCommerce site. URL replacement is optional; media still stays as remote URLs.
                 </p>
                 <label>
                   <span>Site URL</span>
@@ -177,6 +186,27 @@ export default function MigrationWizardPage() {
                     onChange={(event) => setWooApiKey(event.target.value)}
                   />
                 </label>
+                <div className="woo-sync-replacement-grid">
+                  <label>
+                    <span>Old URL to find <small>optional</small></span>
+                    <input
+                      placeholder="Defaults to Site URL"
+                      value={wooSourceSiteUrl}
+                      onChange={(event) => setWooSourceSiteUrl(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>New replacement URL <small>optional</small></span>
+                    <input
+                      placeholder="https://your-new-domain.com"
+                      value={wooReplacementSiteUrl}
+                      onChange={(event) => setWooReplacementSiteUrl(event.target.value)}
+                    />
+                  </label>
+                </div>
+                <small className="woo-sync-help">
+                  When a new replacement URL is provided, matching URLs in WooCommerce images, HTML, permalinks, and source metadata are rewritten before saving.
+                </small>
                 <button className="payload-button migration-primary-action" disabled={wooSyncing} type="submit">
                   <RefreshCw className={wooSyncing ? "payload-refresh-icon is-spinning" : undefined} size={16} />
                   {wooSyncing ? "Syncing" : "Start sync"}
@@ -350,8 +380,17 @@ export default function MigrationWizardPage() {
             <div><span>Updated categories</span><strong>{wooSyncResult.updated?.categories ?? 0}</strong></div>
             <div><span>Updated products</span><strong>{wooSyncResult.updated?.products ?? 0}</strong></div>
             <div><span>Remote media refs</span><strong>{wooSyncResult.updated?.media ?? 0}</strong></div>
+            <div><span>Skipped categories</span><strong>{wooSyncResult.skipped?.categories ?? 0}</strong></div>
             <div><span>Skipped products</span><strong>{wooSyncResult.skipped?.products ?? 0}</strong></div>
           </div>
+          {wooSyncResult.urlReplacement ? (
+            <div className="payload-alert payload-alert--info">
+              <Link2 size={16} />
+              <span>
+                URL replacement applied: {wooSyncResult.urlReplacement.from} -&gt; {wooSyncResult.urlReplacement.to}
+              </span>
+            </div>
+          ) : null}
           {wooSyncResult.warnings?.length ? (
             <div className="migration-warning-list">
               {wooSyncResult.warnings.map((warning: string, index: number) => (

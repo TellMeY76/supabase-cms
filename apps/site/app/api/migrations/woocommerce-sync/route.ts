@@ -78,6 +78,12 @@ type ExistingProductRow = {
   source?: unknown;
 };
 
+type UrlReplacement = {
+  from: string;
+  to: string;
+  replace: (value: string) => string;
+};
+
 export async function POST(request: Request) {
   await requireAdminRole(["owner", "admin", "editor"]);
 
@@ -86,17 +92,21 @@ export async function POST(request: Request) {
   const apiKey = String(payload.apiKey ?? "").trim();
   if (!siteUrl) return NextResponse.json({ error: "Valid site URL is required." }, { status: 400 });
 
+  const urlReplacement = createUrlReplacement(payload, siteUrl);
   const warnings: string[] = [];
-  const [categories, products] = await Promise.all([
+  const [rawCategories, rawProducts] = await Promise.all([
     fetchStorePages<StoreCategory>(siteUrl, "/wp-json/wc/store/v1/products/categories", warnings),
     fetchStorePages<StoreProduct>(siteUrl, "/wp-json/wc/store/v1/products", warnings)
   ]);
+  const categories = replaceUrlsDeep(rawCategories, urlReplacement?.replace) as StoreCategory[];
+  const products = replaceUrlsDeep(rawProducts, urlReplacement?.replace) as StoreProduct[];
 
   if (!isSupabaseConfigured()) {
     return NextResponse.json({
       message: "WooCommerce data fetched. Supabase is not configured, so no records were updated.",
       source: "wc-store-api",
       apiKeyProvided: Boolean(apiKey),
+      urlReplacement: urlReplacement ? { from: urlReplacement.from, to: urlReplacement.to } : undefined,
       fetched: { categories: categories.length, products: products.length },
       updated: { categories: 0, products: 0, media: 0 },
       skipped: { categories: categories.length, products: products.length },
@@ -108,6 +118,7 @@ export async function POST(request: Request) {
   const result = {
     source: "wc-store-api",
     apiKeyProvided: Boolean(apiKey),
+    urlReplacement: urlReplacement ? { from: urlReplacement.from, to: urlReplacement.to } : undefined,
     fetched: { categories: categories.length, products: products.length },
     updated: { categories: 0, products: 0, media: 0 },
     skipped: { categories: 0, products: 0 },
@@ -118,8 +129,8 @@ export async function POST(request: Request) {
 
   const categoryIdByWooId = new Map<number, string>();
   const categoryIdBySlug = new Map<string, string>();
-  await syncCategories(supabase, siteUrl, categories, categoryIdByWooId, categoryIdBySlug, result);
-  await syncProducts(supabase, siteUrl, products, categoryIdByWooId, categoryIdBySlug, result);
+  await syncCategories(supabase, siteUrl, categories, categoryIdByWooId, categoryIdBySlug, result, urlReplacement?.replace);
+  await syncProducts(supabase, siteUrl, products, categoryIdByWooId, categoryIdBySlug, result, urlReplacement?.replace);
   revalidateFrontendCache();
 
   return NextResponse.json({
@@ -139,7 +150,8 @@ async function syncCategories(
     skipped: { categories: number };
     missing: { categories: string[] };
     samples: { categories: string[] };
-  }
+  },
+  replaceUrl?: (value: string) => string
 ) {
   const { data: existingCategories, error } = await supabase.from("product_categories").select("*");
   if (error) throw new Error(error.message);
@@ -176,15 +188,18 @@ async function syncCategories(
     const image = category.image?.src ? remoteMediaValue(category.image.src, category.name, category.image.alt) : null;
     if (image) await upsertRemoteMedia(supabase, siteUrl, image, category.image ?? undefined, "woocommerce:category-image", result);
 
+    const sourceUrl = category.permalink ?? new URL(`/product-category/${category.slug}/`, siteUrl).toString();
+    const replacedExistingImage = replaceExistingUrls(existing.image, replaceUrl);
+    const existingSource = replaceExistingUrls(existing.source, replaceUrl) ?? existing.source;
     const patch = compact({
       description: existing.description ? undefined : htmlText(category.description ?? ""),
-      image: existing.image || !image ? undefined : image,
-      source: mergeSource(existing.source, {
+      image: replacedExistingImage ?? (existing.image || !image ? undefined : image),
+      source: mergeSource(existingSource, {
         siteUrl,
         sourceType: "woocommerce:product-category",
         sourceId: String(category.id),
         sourceSlug: category.slug,
-        sourceUrl: category.permalink ?? new URL(`/product-category/${category.slug}/`, siteUrl).toString()
+        sourceUrl: replaceUrl ? replaceUrl(sourceUrl) : sourceUrl
       })
     });
 
@@ -211,7 +226,8 @@ async function syncProducts(
     skipped: { products: number };
     missing: { products: string[] };
     samples: { products: string[] };
-  }
+  },
+  replaceUrl?: (value: string) => string
 ) {
   const { data: existingProducts, error } = await supabase.from("products").select("*");
   if (error) throw new Error(error.message);
@@ -244,27 +260,30 @@ async function syncProducts(
       .map((category) => categoryIdByWooId.get(category.id) ?? categoryIdBySlug.get(category.slug))
       .filter((id): id is string => Boolean(id));
 
+    const hasContentJson = Boolean(existing.content_json && Object.keys(existing.content_json).length > 0);
+    const sourceUrl = product.permalink ?? new URL(`/product/${product.slug}/`, siteUrl).toString();
+    const existingSource = replaceExistingUrls(existing.source, replaceUrl) ?? existing.source;
     const patch = compact({
       sku: existing.sku ? undefined : emptyToNull(product.sku),
       product_type: existing.product_type ? undefined : emptyToNull(product.type),
-      summary: existing.summary ? undefined : htmlText(product.short_description ?? ""),
-      rich_text: existing.rich_text ? undefined : product.description ?? "",
-      legacy_html: existing.legacy_html ? undefined : product.description ?? "",
-      content_json: existing.content_json && Object.keys(existing.content_json).length > 0 ? undefined : { format: "html", html: product.description ?? "" },
-      primary_image: existing.primary_image || gallery.length === 0 ? undefined : gallery[0],
-      gallery: Array.isArray(existing.gallery) && existing.gallery.length > 0 ? undefined : gallery,
+      summary: existing.summary ? replaceExistingUrls(existing.summary, replaceUrl) : htmlText(product.short_description ?? ""),
+      rich_text: existing.rich_text ? replaceExistingUrls(existing.rich_text, replaceUrl) : product.description ?? "",
+      legacy_html: existing.legacy_html ? replaceExistingUrls(existing.legacy_html, replaceUrl) : product.description ?? "",
+      content_json: hasContentJson ? replaceExistingUrls(existing.content_json, replaceUrl) : { format: "html", html: product.description ?? "" },
+      primary_image: replaceExistingUrls(existing.primary_image, replaceUrl) ?? (existing.primary_image || gallery.length === 0 ? undefined : gallery[0]),
+      gallery: replaceExistingUrls(existing.gallery, replaceUrl) ?? (Array.isArray(existing.gallery) && existing.gallery.length > 0 ? undefined : gallery),
       regular_price: existing.regular_price ? undefined : normalizePrice(product.prices?.regular_price),
       sale_price: existing.sale_price ? undefined : normalizePrice(product.prices?.sale_price),
       currency: existing.currency ? undefined : product.prices?.currency_code,
       price_text: existing.price_text ? undefined : product.price_html || product.prices?.price,
       stock_status: existing.stock_status ? undefined : product.stock_availability?.class ?? (product.is_in_stock ? "in-stock" : "out-of-stock"),
       category_ids: Array.isArray(existing.category_ids) && existing.category_ids.length > 0 ? undefined : categoryIds,
-      source: mergeSource(existing.source, {
+      source: mergeSource(existingSource, {
         siteUrl,
         sourceType: "woocommerce:product",
         sourceId: String(product.id),
         sourceSlug: product.slug,
-        sourceUrl: product.permalink ?? new URL(`/product/${product.slug}/`, siteUrl).toString()
+        sourceUrl: replaceUrl ? replaceUrl(sourceUrl) : sourceUrl
       })
     });
 
@@ -433,4 +452,43 @@ function normalizeSiteUrl(value: string) {
       return undefined;
     }
   }
+}
+
+function createUrlReplacement(payload: Record<string, unknown>, siteUrl: string): UrlReplacement | undefined {
+  const replacementSiteUrl = normalizeSiteUrl(
+    String(payload.replacementSiteUrl ?? payload.newUrl ?? payload.replacementUrl ?? "")
+  );
+  if (!replacementSiteUrl) return undefined;
+  const sourceSiteUrl =
+    normalizeSiteUrl(String(payload.sourceSiteUrl ?? payload.oldUrl ?? payload.sourceUrl ?? "")) ?? siteUrl;
+  if (!sourceSiteUrl || sourceSiteUrl === replacementSiteUrl) return undefined;
+  return {
+    from: sourceSiteUrl,
+    to: replacementSiteUrl,
+    replace: (value: string) => replaceSourceUrl(value, sourceSiteUrl, replacementSiteUrl)
+  };
+}
+
+function replaceUrlsDeep(value: unknown, replace?: (value: string) => string): unknown {
+  if (!replace) return value;
+  if (typeof value === "string") return replace(value);
+  if (Array.isArray(value)) return value.map((item) => replaceUrlsDeep(item, replace));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, replaceUrlsDeep(item, replace)]));
+}
+
+function replaceExistingUrls<T>(value: T, replace?: (value: string) => string): T | undefined {
+  if (!replace || value === undefined || value === null) return undefined;
+  const replaced = replaceUrlsDeep(value, replace) as T;
+  return JSON.stringify(replaced) === JSON.stringify(value) ? undefined : replaced;
+}
+
+function replaceSourceUrl(text: string, from: string, to: string) {
+  return text
+    .split(from)
+    .join(to)
+    .split(from.replace(/^https:\/\//, "http://"))
+    .join(to)
+    .split(from.replace(/^http:\/\//, "https://"))
+    .join(to);
 }

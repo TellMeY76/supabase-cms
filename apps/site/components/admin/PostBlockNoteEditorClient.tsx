@@ -9,7 +9,7 @@ import {
   type Block
 } from "@blocknote/core";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core/extensions";
-import { zh } from "@blocknote/core/locales";
+import { en, zh } from "@blocknote/core/locales";
 import {
   createReactBlockSpec,
   getDefaultReactSlashMenuItems,
@@ -53,6 +53,17 @@ type GalleryItem = {
   caption?: string;
   link?: string;
   sourceType?: "local" | "remote";
+};
+
+const POST_EDITOR_PLACEHOLDERS = {
+  en: {
+    default: "Type '/' for headings, images, tables, and more",
+    emptyDocument: "Start writing, or type '/' to add a block"
+  },
+  zh: {
+    default: "输入 / 添加标题、图片、表格等区块",
+    emptyDocument: "开始写正文，或输入 / 添加区块"
+  }
 };
 
 const articleFont = createStringStyle("articleFont", "fontFamily");
@@ -244,7 +255,8 @@ function MountedPostBlockNoteEditor({
       tables: { splitCells: false, cellBackgroundColor: false, cellTextColor: false, headers: true },
       trailingBlock: true
   };
-  if (typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("zh")) editorOptions.dictionary = zh;
+  const isZhLocale = typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("zh");
+  editorOptions.dictionary = getPostEditorDictionary(isZhLocale);
   const editor = useCreateBlockNote(editorOptions as any, []) as any;
   editor.__trustedEmbedHosts = trustedEmbedHosts;
 
@@ -293,7 +305,7 @@ function MountedPostBlockNoteEditor({
   const articleStats = getArticleStats(editor.document as PostBlockNoteBlock[]);
 
   return (
-    <div className={`post-blocknote post-blocknote--${mode}`} ref={editorRootRef}>
+    <div className={`post-blocknote post-blocknote--${mode} ${isZhLocale ? "post-blocknote--zh" : "post-blocknote--en"}`} ref={editorRootRef}>
       <input name={name} type="hidden" value={contentJson} />
       <input name="contentHtml" type="hidden" value={contentHtml} />
       {uploadError && <div className="post-blocknote__error">{uploadError}</div>}
@@ -358,6 +370,18 @@ function getPostSlashMenuItems(editor: any) {
     }
   ];
   return [...defaults, ...customItems];
+}
+
+function getPostEditorDictionary(isZhLocale: boolean) {
+  const dictionary = isZhLocale ? zh : en;
+  const placeholders = isZhLocale ? POST_EDITOR_PLACEHOLDERS.zh : POST_EDITOR_PLACEHOLDERS.en;
+  return {
+    ...dictionary,
+    placeholders: {
+      ...dictionary.placeholders,
+      ...placeholders
+    }
+  };
 }
 
 function handleArticlePaste({ defaultPasteHandler, editor, event, onError, trustedEmbedHosts, uploadFile }: any) {

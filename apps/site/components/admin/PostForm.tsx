@@ -161,6 +161,7 @@ export function PostForm({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") event.preventDefault();
                   }}
+                  placeholder="Add title"
                   required
                   ref={titleRef}
                   rows={1}
@@ -169,7 +170,14 @@ export function PostForm({
               </div>
               <div className="payload-field post-editor-excerpt-field">
                 <label htmlFor="excerpt">Excerpt</label>
-                <textarea id="excerpt" name="excerpt" onChange={(event) => setExcerpt(event.target.value)} rows={3} value={excerpt} />
+                <textarea
+                  id="excerpt"
+                  name="excerpt"
+                  onChange={(event) => setExcerpt(event.target.value)}
+                  placeholder="Write a short excerpt for lists, SEO, and previews"
+                  rows={3}
+                  value={excerpt}
+                />
               </div>
 
               {editorEngine !== "blocknote" && mode === "preview" && (

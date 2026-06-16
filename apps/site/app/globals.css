@@ -121,6 +121,25 @@
 
   .post-blocknote--blocks .bn-editor { max-width: 960px; }
 
+  .post-blocknote .bn-react-node-view-renderer[data-is-only-empty-block="true"] > .bn-block-content[data-content-type="paragraph"] {
+    position: relative;
+  }
+
+  .post-blocknote .bn-react-node-view-renderer[data-is-only-empty-block="true"] > .bn-block-content[data-content-type="paragraph"]::before {
+    position: absolute;
+    inset: 0 auto auto 0;
+    color: #98a2b3;
+    content: "Start writing, or type / to add a block" !important;
+    font-size: 16px;
+    line-height: 1.7;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .post-blocknote--zh .bn-react-node-view-renderer[data-is-only-empty-block="true"] > .bn-block-content[data-content-type="paragraph"]::before {
+    content: "开始写正文，或输入 / 添加区块" !important;
+  }
+
   .bn-shadcn .bn-menu-dropdown,
   .bn-shadcn .bn-toolbar,
   .bn-shadcn [role="listbox"] {
@@ -1114,6 +1133,10 @@
     @apply border-amber-200 bg-amber-50 text-amber-800;
   }
 
+  .payload-alert--info {
+    @apply border-blue-200 bg-blue-50 text-blue-800;
+  }
+
   .migration-page {
     @apply grid gap-6;
   }
@@ -1298,6 +1321,14 @@
 
   .woo-sync-form input {
     @apply h-11 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-950 outline-none transition focus:border-[#ff881b] focus:ring-4 focus:ring-[#ff881b]/15;
+  }
+
+  .woo-sync-replacement-grid {
+    @apply grid gap-4 sm:grid-cols-2;
+  }
+
+  .woo-sync-help {
+    @apply -mt-1 block text-xs leading-5 text-zinc-500;
   }
 
   .payload-filterbar {
