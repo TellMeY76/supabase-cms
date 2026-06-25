@@ -6,6 +6,9 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "build": "pnpm -r build",
+    "cf:build": "pnpm --filter @global-trade/site cf:build",
+    "cf:deploy": "pnpm --filter @global-trade/site cf:deploy",
+    "cf:preview": "pnpm --filter @global-trade/site cf:preview",
     "dev": "pnpm --filter @global-trade/site dev",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",

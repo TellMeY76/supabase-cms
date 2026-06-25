@@ -59,6 +59,7 @@ ALI_OSS_PATH_PREFIX=inshow-home
 ```
 
 Never commit `.env.local`, Supabase service-role keys, Ali OSS access keys, `.next`, `.edgeone`, or `edgeone-static`.
+Cloudflare OpenNext builds also generate `.open-next`; it is ignored and should not be committed.
 
 ## Migration Flow
 
@@ -79,3 +80,39 @@ EDGEONE_PROJECT_NAME=edgeone-supabase-cms
 ```
 
 `EDGEONE_PROJECT_NAME` is optional; it defaults to `edgeone-supabase-cms`.
+
+## Cloudflare Workers + OpenNext
+
+The app uses `/admin`, `/api/*`, Server Actions, cookies, and dynamic rendering, so it should deploy to Cloudflare Workers through OpenNext rather than pure Cloudflare Pages static hosting.
+
+Local build:
+
+```bash
+pnpm cf:build
+```
+
+Local Worker preview:
+
+```bash
+pnpm cf:preview
+```
+
+Deploy to Cloudflare:
+
+```bash
+pnpm cf:deploy
+```
+
+Before deploying, configure Cloudflare Worker environment variables for the site:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SITE_URL=
+MEDIA_UPLOAD_PROVIDER=supabase
+SUPABASE_MEDIA_BUCKET=media
+```
+
+The Cloudflare config lives in `apps/site/wrangler.jsonc`; the OpenNext adapter config lives in `apps/site/open-next.config.ts`.

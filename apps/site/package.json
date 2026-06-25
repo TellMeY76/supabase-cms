@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "next build",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "dev": "next dev",
     "lint": "tsc -p tsconfig.json --noEmit",
     "start": "next start",
@@ -50,6 +53,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.19.11",
     "@tailwindcss/postcss": "4.1.12",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
@@ -57,6 +61,7 @@
     "postcss": "^8.5.15",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wrangler": "^4.101.0"
   }
 }
