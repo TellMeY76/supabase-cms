@@ -88,7 +88,7 @@ export default function MigrationWizardPage() {
       method: "POST",
       body: form
     });
-    const payload = await response.json();
+    const payload = await parseApiPayload(response);
     setLoading(false);
     if (!response.ok) {
       setError(payload.error ?? "Preview failed");
@@ -111,7 +111,7 @@ export default function MigrationWizardPage() {
       method: "POST",
       body: form
     });
-    const payload = await response.json();
+    const payload = await parseApiPayload(response);
     setImporting(false);
     setImportProgress(response.ok ? 100 : 0);
     if (!response.ok) {
@@ -136,7 +136,7 @@ export default function MigrationWizardPage() {
         replacementSiteUrl: wooReplacementSiteUrl
       })
     });
-    const payload = await response.json();
+    const payload = await parseApiPayload(response);
     setWooSyncing(false);
     if (!response.ok) {
       setError(payload.error ?? "WooCommerce REST sync failed");
@@ -429,6 +429,19 @@ export default function MigrationWizardPage() {
       )}
     </div>
   );
+}
+
+async function parseApiPayload(response: Response): Promise<any> {
+  const text = await response.text();
+  if (!text) {
+    return { error: `The server returned an empty response (${response.status}). Check the server logs for this request.` };
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: `The server returned an invalid response (${response.status}).` };
+  }
 }
 
 function formatLabel(value: string) {

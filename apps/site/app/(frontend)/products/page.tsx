@@ -87,7 +87,16 @@ export default async function ProductsPage({
               <p>
                 {text.showing(showingStart, showingEnd, sortedProducts.length, selectedCategory ? categoryTitle(selectedCategory) : undefined)}
               </p>
-              <ProductSortSelect labels={text} value={sortValue} />
+              <ProductSortSelect
+                labels={{
+                  sortDefault: text.sortDefault,
+                  sortPopularity: text.sortPopularity,
+                  sortLatest: text.sortLatest,
+                  sortPriceAsc: text.sortPriceAsc,
+                  sortPriceDesc: text.sortPriceDesc,
+                }}
+                value={sortValue}
+              />
             </div>
             <ProductGrid
               detailLabel={content.text.common.details}

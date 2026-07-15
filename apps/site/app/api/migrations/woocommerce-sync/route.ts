@@ -1,10 +1,22 @@
 import { slugify } from "@global-trade/core";
-import { requireAdminRole, createCookieSupabaseClient } from "@/lib/auth";
+import { getAdminSession, createCookieSupabaseClient } from "@/lib/auth";
 import { revalidateFrontendCache } from "@/lib/cache-tags";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { createServiceSupabaseClient, isSupabaseConfigured, isSupabaseServiceRoleConfigured } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+
+export async function POST(request: Request) {
+  try {
+    return await syncWooCommerceData(request);
+  } catch (error) {
+    console.error("WooCommerce REST sync failed", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "WooCommerce REST sync failed." },
+      { status: 500 }
+    );
+  }
+}
 
 type StoreImage = {
   id?: number;
@@ -48,7 +60,7 @@ type StoreProduct = {
   stock_availability?: { text?: string; class?: string };
 };
 
-type SupabaseClient = Awaited<ReturnType<typeof createCookieSupabaseClient>>;
+type SupabaseClient = Awaited<ReturnType<typeof createCookieSupabaseClient>> | ReturnType<typeof createServiceSupabaseClient>;
 
 type ExistingCategoryRow = {
   id: string;
@@ -84,8 +96,11 @@ type UrlReplacement = {
   replace: (value: string) => string;
 };
 
-export async function POST(request: Request) {
-  await requireAdminRole(["owner", "admin", "editor"]);
+async function syncWooCommerceData(request: Request) {
+  const session = await getAdminSession();
+  if (!session || !["owner", "admin", "editor"].includes(session.profile.role)) {
+    return NextResponse.json({ error: "An owner, admin, or editor account is required to sync WooCommerce data." }, { status: 403 });
+  }
 
   const payload = await request.json().catch(() => ({}));
   const siteUrl = normalizeSiteUrl(String(payload.siteUrl ?? ""));
@@ -114,7 +129,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const supabase = await createCookieSupabaseClient();
+  const supabase = isSupabaseServiceRoleConfigured() ? createServiceSupabaseClient() : await createCookieSupabaseClient();
   const result = {
     source: "wc-store-api",
     apiKeyProvided: Boolean(apiKey),

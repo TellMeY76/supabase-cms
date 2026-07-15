@@ -1,13 +1,18 @@
 import { detectConnector, type MigrationEntity } from "@global-trade/migrator";
-import { createCookieSupabaseClient } from "@/lib/auth";
+import { createCookieSupabaseClient, getAdminSession } from "@/lib/auth";
 import { revalidateFrontendCache } from "@/lib/cache-tags";
 import { importMigrationEntities } from "@/lib/migration-import";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { createServiceSupabaseClient, isSupabaseConfigured, isSupabaseServiceRoleConfigured } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const session = await getAdminSession();
+  if (!session || !["owner", "admin", "editor"].includes(session.profile.role)) {
+    return NextResponse.json({ error: "An owner, admin, or editor account is required to import data." }, { status: 403 });
+  }
+
   const form = await request.formData();
   const sourceSiteUrl = normalizeUrl(String(form.get("sourceSiteUrl") ?? "")) ?? "https://inshowhome.com";
   const replacementSiteUrl = normalizeUrl(String(form.get("replacementSiteUrl") ?? ""));
@@ -46,7 +51,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const supabase = await createCookieSupabaseClient();
+  const supabase = isSupabaseServiceRoleConfigured() ? createServiceSupabaseClient() : await createCookieSupabaseClient();
   try {
     const result = await importMigrationEntities(supabase, entities);
     revalidateFrontendCache();
